@@ -1,3 +1,70 @@
 //// Minting policy for the beacon token marking the UTXO with the datum
 //// containing the settings for the protocol -- mainly the latest hash of
 //// the upgradeable validator.
+
+use aiken/collection/list
+use aiken/crypto.{VerificationKeyHash}
+use cardano/address.{Script}
+use cardano/assets.{PolicyId}
+use cardano/script_context.{ScriptContext}
+use cardano/transaction.{OutputReference, Transaction, find_input}
+use helpers.{validate_settings_output}
+use types.{
+  BurnBeaconToken, MintBeaconToken, ReadSettings, SettingsDatum, UnifiedRedeemer,
+  UpdateSettings,
+}
+use utils.{find_script_output, get_script_hash_frm_output, is_signed_by}
+
+validator settings(admin: VerificationKeyHash) {
+  mint(redeemer: UnifiedRedeemer, _this_policy: PolicyId, this_tx: Transaction) {
+    when redeemer is {
+      MintBeaconToken -> is_signed_by(this_tx.extra_signatories, admin)
+      BurnBeaconToken -> is_signed_by(this_tx.extra_signatories, admin)
+      _ -> fail @"Invalid redeemer for settings::mint"
+    }
+  }
+
+  spend(
+    datum: Option<SettingsDatum>,
+    redeemer: UnifiedRedeemer,
+    output_ref: OutputReference,
+    this_tx: Transaction,
+  ) {
+    when redeemer is {
+      ReadSettings -> {
+        expect Some(input_from_self) = this_tx.inputs |> find_input(output_ref)
+        let own_hash =
+          get_script_hash_frm_output(input_from_self.output, @"settings::spend")
+        let output_to_self = find_script_output(this_tx.outputs, own_hash)
+        expect Some(output_to_self) = output_to_self
+        expect Some(settings_datum) = datum
+        let settings_output_valid =
+          validate_settings_output(
+            input_from_self,
+            settings_datum,
+            output_to_self,
+          )
+        let SettingsDatum { vault, .. } = settings_datum
+        let has_input_from_vault =
+          list.any(
+            this_tx.inputs,
+            fn(input) {
+              when input.output.address.payment_credential is {
+                Script(script_hash) -> script_hash == vault
+                _ -> False
+              }
+            },
+          )
+
+        settings_output_valid && has_input_from_vault
+      }
+      UpdateSettings -> is_signed_by(this_tx.extra_signatories, admin)
+      _ -> fail @"Invalid redeemer for settings::spend"
+    }
+  }
+
+  else(context: ScriptContext) {
+    let this_tx: Transaction = context.transaction
+    is_signed_by(this_tx.extra_signatories, admin)
+  }
+}

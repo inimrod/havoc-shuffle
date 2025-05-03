@@ -65,7 +65,7 @@ The protocol is mainly composed of 3 validators: `vault.ak`, `settings.ak`, and 
     1. The S2 policy ID (`s2_policy_id`)
     1. Max number of NFTs to shuffle per tx (`max_to_shuffle`)
 
-    Its _minting_ validation allows minting of the beacon token only if signed by the admin, as provided in the script's parameter.
+    Its _minting_ validation allows minting/burning of the beacon token only if signed by the admin, as provided in the script's parameter.
 
     Its _spending_ validation evaluates to `True` only in the following `Redeemer` cases:
     
@@ -83,7 +83,7 @@ The protocol is mainly composed of 3 validators: `vault.ak`, `settings.ak`, and 
 
     It only allows spending of its held UTXOs if:
     
-    1. One of the _inputs_ contain the `settings` _beacon token_.
+    1. One of the _inputs_ contains the `settings` _beacon token_.
     1. From the `settings` UTXO datum, the latest `protocol` script hash is determined. An input from that script is then also required, triggering the evaluation of the `protocol`'s validation logic.
 
     UTXOs representing requests from users, contain in their datum the address of the requesting user (owner of the submitted NFTs to be replaced).
@@ -132,6 +132,6 @@ The protocol is mainly composed of 3 validators: `vault.ak`, `settings.ak`, and 
         1. The assets in the _vault input_ must all be sent back to the requesting user's address.
         1. The transaction must be signed either by the requesting user, or by the admin.
 
-    - Redeemer `Retire`:
+    - Redeemer `RetireProtocol`:
 
         1. The transaction must be signed by the admin. This is useful only when the `protocol` validator is upgraded.
