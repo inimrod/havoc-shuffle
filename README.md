@@ -65,15 +65,18 @@ The protocol is mainly composed of 3 validators: `vault.ak`, `settings.ak`, and 
     1. The S2 policy ID (`s2_policy_id`)
     1. Max number of NFTs to shuffle per tx (`max_to_shuffle`)
 
-    Its _minting_ validation allows minting/burning of the beacon token only if signed by the admin, as provided in the script's parameter.
+    Its _minting_ validation allows minting/burning of the beacon token only if:
+    
+    1. ✅ Signed by the admin, as provided in the script's parameter.
 
     Its _spending_ validation evaluates to `True` only in the following `Redeemer` cases:
     
     1. Redeemer `ReadSettings`:
-        - if one of the inputs consumed is from the `vault`
-        - if the _beacon token_ is returned to the same address, with unchanged datum
+        - ✅ if one of the inputs consumed is from the `vault`
+        - ✅ if the _beacon token_ is returned to the same address, with unchanged datum
 
-    1. Redeemer `UpdateSettings` - if the tx is signed by the admin
+    1. Redeemer `UpdateSettings`:
+        - ✅if the tx is signed by the admin
 
 - `vault`
 
