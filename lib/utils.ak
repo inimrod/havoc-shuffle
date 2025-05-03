@@ -2,7 +2,7 @@ use aiken/collection/list
 use aiken/crypto.{ScriptHash, VerificationKeyHash}
 use aiken/primitive/string
 use cardano/address.{Script, VerificationKey}
-use cardano/transaction.{Output}
+use cardano/transaction.{Input, Output}
 
 pub fn is_signed_by(
   reqd_signers: List<VerificationKeyHash>,
@@ -20,6 +20,21 @@ pub fn get_script_hash_frm_output(output: Output, caller: String) -> ScriptHash 
         @": Given output is not locked in a script; get_script_hash_frm_output()",
       )
   }
+}
+
+pub fn find_script_input(
+  inputs: List<Input>,
+  script_hash: ScriptHash,
+) -> Option<Input> {
+  list.find(
+    inputs,
+    fn(input) {
+      when input.output.address.payment_credential is {
+        Script(hash) -> hash == script_hash
+        _ -> False
+      }
+    },
+  )
 }
 
 pub fn find_script_output(

@@ -2,9 +2,7 @@
 //// containing the settings for the protocol -- mainly the latest hash of
 //// the upgradeable validator.
 
-use aiken/collection/list
 use aiken/crypto.{VerificationKeyHash}
-use cardano/address.{Script}
 use cardano/assets.{PolicyId}
 use cardano/script_context.{ScriptContext}
 use cardano/transaction.{OutputReference, Transaction, find_input}
@@ -13,7 +11,10 @@ use types.{
   BurnBeaconToken, MintBeaconToken, ReadSettings, SettingsDatum, UnifiedRedeemer,
   UpdateSettings,
 }
-use utils.{find_script_output, get_script_hash_frm_output, is_signed_by}
+use utils.{
+  find_script_input, find_script_output, get_script_hash_frm_output,
+  is_signed_by,
+}
 
 validator settings(admin: VerificationKeyHash) {
   mint(redeemer: UnifiedRedeemer, _this_policy: PolicyId, this_tx: Transaction) {
@@ -32,7 +33,7 @@ validator settings(admin: VerificationKeyHash) {
   ) {
     when redeemer is {
       ReadSettings -> {
-        expect Some(input_from_self) = this_tx.inputs |> find_input(output_ref)
+        expect Some(input_from_self) = find_input(this_tx.inputs, output_ref)
         let own_hash =
           get_script_hash_frm_output(input_from_self.output, @"settings::spend")
         let output_to_self = find_script_output(this_tx.outputs, own_hash)
@@ -45,17 +46,12 @@ validator settings(admin: VerificationKeyHash) {
             output_to_self,
           )
         let SettingsDatum { vault, .. } = settings_datum
+        let vault_input = find_script_input(this_tx.inputs, vault)
         let has_input_from_vault =
-          list.any(
-            this_tx.inputs,
-            fn(input) {
-              when input.output.address.payment_credential is {
-                Script(script_hash) -> script_hash == vault
-                _ -> False
-              }
-            },
-          )
-
+          when vault_input is {
+            Some(_input) -> True
+            None -> False
+          }
         settings_output_valid && has_input_from_vault
       }
       UpdateSettings -> is_signed_by(this_tx.extra_signatories, admin)
