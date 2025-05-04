@@ -135,6 +135,6 @@ The protocol is mainly composed of 3 validators: `vault.ak`, `settings.ak`, and 
         1. The assets in the _vault input_ must all be sent back to the requesting user's address.
         1. The transaction must be signed either by the requesting user, or by the admin.
 
-    - Redeemer `RetireProtocol`:
+    - Redeemer `Administer`:
 
-        1. The transaction must be signed by the admin. This is useful only when the `protocol` validator is upgraded.
+        1. The transaction must be signed by the admin. This is useful only when the `protocol` validator is upgraded/retired.
