@@ -33,5 +33,6 @@ pub type VaultParams {
 
 pub type ProtocolParams {
   admin: VerificationKeyHash,
-  settings: ScriptHash,
+  settings_policy: ScriptHash,
+  beacon_asset_name: AssetName,
 }

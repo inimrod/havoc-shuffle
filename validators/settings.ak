@@ -5,8 +5,8 @@
 use aiken/crypto.{VerificationKeyHash}
 use cardano/assets.{PolicyId}
 use cardano/script_context.{ScriptContext}
-use cardano/transaction.{OutputReference, Transaction, find_input}
-use helpers.{validate_settings_output}
+use cardano/transaction.{InlineDatum, OutputReference, Transaction, find_input}
+use helpers.{input_output_match}
 use types.{
   BurnBeaconToken, MintBeaconToken, ReadSettings, SettingsDatum, UnifiedRedeemer,
   UpdateSettings,
@@ -39,10 +39,11 @@ validator settings(admin: VerificationKeyHash) {
         let output_to_self = find_script_output(this_tx.outputs, own_hash)
         expect Some(output_to_self) = output_to_self
         expect Some(settings_datum) = datum
+        let settings_data: Data = InlineDatum(settings_datum)
         let settings_output_valid =
-          validate_settings_output(
+          input_output_match(
             input_from_self,
-            settings_datum,
+            Some(settings_data),
             output_to_self,
           )
         let SettingsDatum { vault, .. } = settings_datum

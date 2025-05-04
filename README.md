@@ -76,7 +76,7 @@ The protocol is mainly composed of 3 validators: `vault.ak`, `settings.ak`, and 
         - ✅ if the _beacon token_ is returned to the same address, with unchanged datum
 
     1. Redeemer `UpdateSettings`:
-        - ✅if the tx is signed by the admin
+        - ✅ if the tx is signed by the admin
 
 - `vault`
 
@@ -86,8 +86,8 @@ The protocol is mainly composed of 3 validators: `vault.ak`, `settings.ak`, and 
 
     It only allows spending of its held UTXOs if:
     
-    1. One of the _inputs_ contains the `settings` _beacon token_.
-    1. From the `settings` UTXO datum, the latest `protocol` script hash is determined. An input from that script is then also required, triggering the evaluation of the `protocol`'s validation logic.
+    1. ✅ One of the _inputs_ contains the `settings` _beacon token_.
+    1. ✅ From the `settings` UTXO datum, the latest `protocol` script hash is determined. An input from that script is then also required, triggering the evaluation of the `protocol`'s validation logic.
 
     UTXOs representing requests from users, contain in their datum the address of the requesting user (owner of the submitted NFTs to be replaced).
 
@@ -107,8 +107,8 @@ The protocol is mainly composed of 3 validators: `vault.ak`, `settings.ak`, and 
 
     - Redeemer `LiveShuffle`:
 
-        1. One of the inputs should be the `settings` UTXO (expected, since also required by `vault`).
-        1. The own input of the `protocol` validator is retained at the `protocol` address.
+        1. ✅ One of the inputs should be the `settings` UTXO (expected, since also required by `vault`).
+        1. ✅ The own input of the `protocol` validator is retained at the `protocol` address.
         1. There must be 1 and only 1 input from the `vault`.
         1. The _vault input_ must contain in its datum the requesting user's address.
         1. There must be at least 1 S2 NFT in the _vault input_, and a total not exceeding the `max_to_shuffle` setting.
