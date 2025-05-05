@@ -1,7 +1,7 @@
 use aiken/collection/list
 use aiken/crypto.{ScriptHash, VerificationKeyHash}
 use aiken/primitive/string
-use cardano/address.{Script, VerificationKey}
+use cardano/address.{Address, Script, VerificationKey}
 use cardano/transaction.{Input, Output}
 
 pub fn is_signed_by(
@@ -50,4 +50,11 @@ pub fn find_script_output(
       }
     },
   )
+}
+
+pub fn find_address_output(
+  outputs: List<Output>,
+  address: Address,
+) -> Option<Output> {
+  list.find(outputs, fn(output) { output.address == address })
 }
