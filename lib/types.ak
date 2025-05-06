@@ -1,7 +1,10 @@
-use aiken/crypto.{ScriptHash, VerificationKeyHash}
+use aiken/crypto.{Blake2b_224, Hash, ScriptHash, VerificationKeyHash}
 use cardano/address.{Address}
 use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{Input, Output}
+
+pub type SignerHash =
+  Hash<Blake2b_224, ByteArray>
 
 pub type UnifiedRedeemer {
   MintBeaconToken

@@ -2,7 +2,7 @@ use aiken/builtin.{serialise_data}
 use aiken/collection/list
 use aiken/crypto.{ScriptHash}
 use cardano/address.{Address, Script}
-use cardano/assets.{AssetName, match, quantity_of}
+use cardano/assets.{AssetName, Value, match, merge, quantity_of, zero}
 use cardano/transaction.{
   InlineDatum, Input, NoDatum, Output, OutputReference, Transaction, find_input,
 }
@@ -143,4 +143,8 @@ pub fn classify_outputs(
       }
     },
   )
+}
+
+pub fn total_outputs_value(outputs: List<Output>) -> Value {
+  list.foldl(outputs, zero, fn(output, accum) { merge(accum, output.value) })
 }

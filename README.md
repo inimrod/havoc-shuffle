@@ -117,7 +117,7 @@ The protocol is mainly composed of 3 validators: `vault.ak`, `settings.ak`, and 
         1. ✅ The newly minted S2 NFTs must be sent to the requesting user's address.
         1. ✅ There must be 1 and only 1 output to the `vault`.
         1. ✅ There must be no other output other than those going to the `settings`, `vault`, `protocol`, and user addresses.
-        1. ✅ The input S2 NFTs, and the leftover lovelaces must be sent back to the `vault`, but this time containing an empty datum.        
+        1. ✅ The input S2 NFTs, and the leftover lovelaces must be sent back to the `vault`, but this time containing an empty datum.
 
     - Redeemer `ReShuffle`:
 
@@ -131,13 +131,13 @@ The protocol is mainly composed of 3 validators: `vault.ak`, `settings.ak`, and 
 
     - Redeemer `CancelShuffle`:
 
-        1. One of the inputs should be the `settings` UTXO (expected, since also required by `vault`).
-        1. The own input of the `protocol` validator is retained at the `protocol` address.
-        1. There must be 1 and only 1 input from the `vault`.
-        1. The _vault input_ must contain in its datum the requesting user's address.
-        1. The assets in the _vault input_ must all be sent back to the requesting user's address.
-        1. The transaction must be signed either by the requesting user, or by the admin.
+        1. ✅ One of the inputs should be the `settings` UTXO (expected, since also required by `vault`).
+        1. ✅ The own input of the `protocol` validator is retained at the `protocol` address.
+        1. ✅ There must be 1 and only 1 input from the `vault`.
+        1. ✅ The _vault input_ must contain in its datum the requesting user's address.
+        1. ✅ The assets in the _vault input_ must all be sent back to the requesting user's address.
+        1. ✅ The transaction must be signed either by the requesting user, or by the admin.
 
     - Redeemer `Administer`:
 
-        1. The transaction must be signed by the admin. This is useful only when the `protocol` validator is upgraded/retired.
+        1. ✅ The transaction must be signed by the admin. This is useful only when the `protocol` validator is upgraded/retired.

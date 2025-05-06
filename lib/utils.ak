@@ -1,13 +1,11 @@
 use aiken/collection/list
-use aiken/crypto.{ScriptHash, VerificationKeyHash}
+use aiken/crypto.{ScriptHash}
 use aiken/primitive/string
 use cardano/address.{Address, Script, VerificationKey}
 use cardano/transaction.{Input, Output}
+use types.{SignerHash}
 
-pub fn is_signed_by(
-  reqd_signers: List<VerificationKeyHash>,
-  signer: VerificationKeyHash,
-) -> Bool {
+pub fn is_signed_by(reqd_signers: List<SignerHash>, signer: SignerHash) -> Bool {
   list.has(reqd_signers, signer)
 }
 

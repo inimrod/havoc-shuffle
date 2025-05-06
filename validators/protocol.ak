@@ -2,12 +2,13 @@
 
 use aiken/collection/dict.{size}
 use aiken/collection/list
+use cardano/address.{Script, VerificationKey}
 use cardano/assets.{match, tokens}
 use cardano/script_context.{ScriptContext}
 use cardano/transaction.{InlineDatum, OutputReference, Transaction}
 use helpers.{
-  classify_inputs, classify_outputs, get_settings, validate_protocol_output,
-  validate_vault_output,
+  classify_inputs, classify_outputs, get_settings, total_outputs_value,
+  validate_protocol_output, validate_vault_output,
 }
 use types.{
   Administer, CancelShuffle, LiveShuffle, ProtocolParams, ReShuffle,
@@ -76,7 +77,46 @@ validator protocol(params: ProtocolParams) {
         }
       }
       ReShuffle -> todo @"ReShuffle logic"
-      CancelShuffle -> todo @"CancelShuffle logic"
+      CancelShuffle -> {
+        let settings =
+          get_settings(
+            this_tx.inputs,
+            params.settings_policy,
+            params.beacon_asset_name,
+          )
+        let protocol_output_valid =
+          validate_protocol_output(this_tx, output_ref, settings)
+        let classified_inputs = classify_inputs(this_tx.inputs, settings)
+        let only_one_vault_input = 1 == list.length(classified_inputs.vault)
+        expect Some(vault_input) = list.head(classified_inputs.vault)
+        expect InlineDatum(vault_datum) = vault_input.output.datum
+        expect vault_datum: VaultDatum = vault_datum
+        let classified_outputs =
+          classify_outputs(
+            this_tx.outputs,
+            settings,
+            params.settings_policy,
+            vault_datum.owner,
+          )
+        let user_output_value = total_outputs_value(classified_outputs.user)
+        let user_output_valid =
+          match(vault_input.output.value, user_output_value, <=)
+        let owner =
+          when vault_datum.owner.payment_credential is {
+            VerificationKey(hash) -> hash
+            Script(hash) -> hash
+          }
+        let signed_by_owner = is_signed_by(this_tx.extra_signatories, owner)
+        let signed_by_admin =
+          is_signed_by(this_tx.extra_signatories, params.admin)
+        let validly_signed = signed_by_owner || signed_by_admin
+        and {
+          protocol_output_valid?,
+          only_one_vault_input?,
+          user_output_valid?,
+          validly_signed?,
+        }
+      }
       Administer -> is_signed_by(this_tx.extra_signatories, params.admin)
       _ -> fail @"Invalid redeemer for protocol::spend"
     }
