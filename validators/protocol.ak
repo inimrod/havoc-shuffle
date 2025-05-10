@@ -1,14 +1,15 @@
 //// This contains the main validator business logic
 
-use aiken/collection/dict.{size}
+use aiken/collection/dict.{keys, size}
 use aiken/collection/list
 use cardano/address.{Script, VerificationKey}
 use cardano/assets.{match, tokens}
 use cardano/script_context.{ScriptContext}
 use cardano/transaction.{InlineDatum, OutputReference, Transaction}
 use helpers.{
-  classify_inputs, classify_outputs, get_settings, total_outputs_value,
-  validate_protocol_output, validate_vault_output,
+  classify_inputs, classify_outputs, get_settings, total_inputs_value,
+  total_outputs_value, validate_liveshuffle_return_utxo,
+  validate_protocol_output, validate_reshuffle_return_utxo,
 }
 use types.{
   Administer, CancelShuffle, LiveShuffle, ProtocolParams, ReShuffle,
@@ -34,8 +35,11 @@ validator protocol(params: ProtocolParams) {
         let protocol_output_valid =
           validate_protocol_output(this_tx, output_ref, settings)
         let classified_inputs = classify_inputs(this_tx.inputs, settings)
-        let only_one_vault_input = 1 == list.length(classified_inputs.vault)
-        expect Some(vault_input) = list.head(classified_inputs.vault)
+        let only_one_vault_input = and {
+            1 == list.length(classified_inputs.vault.request),
+            0 == list.length(classified_inputs.vault.pool),
+          }
+        expect Some(vault_input) = list.head(classified_inputs.vault.request)
         expect InlineDatum(vault_datum) = vault_input.output.datum
         expect vault_datum: VaultDatum = vault_datum
         let classified_outputs =
@@ -62,7 +66,7 @@ validator protocol(params: ProtocolParams) {
         let no_other_output = 0 == list.length(classified_outputs.other)
 
         let vault_output_valid =
-          validate_vault_output(vault_input, vault_output)
+          validate_liveshuffle_return_utxo(vault_input, vault_output)
 
         and {
           protocol_output_valid?,
@@ -76,7 +80,57 @@ validator protocol(params: ProtocolParams) {
           vault_output_valid?,
         }
       }
-      ReShuffle -> todo @"ReShuffle logic"
+      ReShuffle -> {
+        let settings =
+          get_settings(
+            this_tx.inputs,
+            params.settings_policy,
+            params.beacon_asset_name,
+          )
+        let protocol_output_valid =
+          validate_protocol_output(this_tx, output_ref, settings)
+        let classified_inputs = classify_inputs(this_tx.inputs, settings)
+        let only_one_request_input =
+          1 == list.length(classified_inputs.vault.request)
+        let min_1_pool_input = 1 <= list.length(classified_inputs.vault.pool)
+        let pool_inputs_value = total_inputs_value(classified_inputs.vault.pool)
+        expect Some(request_input) = list.head(classified_inputs.vault.request)
+        expect InlineDatum(request_datum) = request_input.output.datum
+        expect request_datum: VaultDatum = request_datum
+        let s2_tokens_in_request =
+          tokens(request_input.output.value, settings.s2_policy_id)
+        let s2_qty_in_request = size(s2_tokens_in_request)
+
+        let classified_outputs =
+          classify_outputs(
+            this_tx.outputs,
+            settings,
+            params.settings_policy,
+            request_datum.owner,
+          )
+        let user_output_value = total_outputs_value(classified_outputs.user)
+        let s2_qty_in_user_output =
+          tokens(user_output_value, settings.s2_policy_id) |> size()
+        let valid_s2_qty_in_user_output =
+          s2_qty_in_request == s2_qty_in_user_output
+        expect Some(vault_output) = list.head(classified_outputs.vault)
+        let valid_reshuffle_return_utxo =
+          validate_reshuffle_return_utxo(
+            vault_output,
+            pool_inputs_value,
+            keys(s2_tokens_in_request),
+            s2_qty_in_request,
+            settings.s2_policy_id,
+          )
+
+        and {
+          protocol_output_valid?,
+          only_one_request_input?,
+          min_1_pool_input?,
+          valid_s2_qty_in_user_output?,
+          valid_reshuffle_return_utxo?,
+        }
+      }
       CancelShuffle -> {
         let settings =
           get_settings(
@@ -87,8 +141,11 @@ validator protocol(params: ProtocolParams) {
         let protocol_output_valid =
           validate_protocol_output(this_tx, output_ref, settings)
         let classified_inputs = classify_inputs(this_tx.inputs, settings)
-        let only_one_vault_input = 1 == list.length(classified_inputs.vault)
-        expect Some(vault_input) = list.head(classified_inputs.vault)
+        let only_one_vault_input = and {
+            1 == list.length(classified_inputs.vault.request),
+            0 == list.length(classified_inputs.vault.pool),
+          }
+        expect Some(vault_input) = list.head(classified_inputs.vault.request)
         expect InlineDatum(vault_datum) = vault_input.output.datum
         expect vault_datum: VaultDatum = vault_datum
         let classified_outputs =

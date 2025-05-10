@@ -40,8 +40,13 @@ pub type ProtocolParams {
   beacon_asset_name: AssetName,
 }
 
+pub type ClassifiedVaultInputs {
+  request: List<Input>,
+  pool: List<Input>,
+}
+
 pub type ClassifiedInputs {
-  vault: List<Input>,
+  vault: ClassifiedVaultInputs,
   protocol: List<Input>,
 }
 

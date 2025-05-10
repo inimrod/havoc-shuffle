@@ -1,12 +1,19 @@
 use aiken/builtin.{serialise_data}
+use aiken/collection/dict.{has_key, size}
 use aiken/collection/list
 use aiken/crypto.{ScriptHash}
 use cardano/address.{Address, Script}
-use cardano/assets.{AssetName, Value, match, merge, quantity_of, zero}
+use cardano/assets.{
+  AssetName, PolicyId, Value, lovelace_of, match, merge, quantity_of, tokens,
+  zero,
+}
 use cardano/transaction.{
   InlineDatum, Input, NoDatum, Output, OutputReference, Transaction, find_input,
 }
-use types.{ClassifiedInputs, ClassifiedOutputs, SettingsDatum}
+use types.{
+  ClassifiedInputs, ClassifiedOutputs, ClassifiedVaultInputs, SettingsDatum,
+  VaultDatum,
+}
 use utils.{find_script_input, find_script_output}
 
 pub fn input_output_match(
@@ -59,9 +66,13 @@ pub fn validate_protocol_output(
   input_output_match(input_from_self, None, output_to_self)
 }
 
-pub fn validate_vault_output(input: Input, output: Output) -> Bool {
+pub fn validate_liveshuffle_return_utxo(input: Input, output: Output) -> Bool {
   let valid_values = match(input.output.value, output.value, >=)
-  let output_has_no_datum = output.datum == NoDatum
+  let output_has_no_datum =
+    when output.datum is {
+      NoDatum -> True
+      _ -> False
+    }
   valid_values? && output_has_no_datum?
 }
 
@@ -71,18 +82,45 @@ pub fn classify_inputs(
 ) -> ClassifiedInputs {
   list.foldl(
     inputs,
-    ClassifiedInputs { vault: [], protocol: [] },
+    ClassifiedInputs {
+      vault: ClassifiedVaultInputs { request: [], pool: [] },
+      protocol: [],
+    },
     fn(input, accum) {
       when input.output.address.payment_credential is {
         Script(script_hash) ->
           if script_hash == settings.vault {
-            ClassifiedInputs {
-              vault: list.push(accum.vault, input),
-              protocol: accum.protocol,
+            when input.output.datum is {
+              InlineDatum(datum) ->
+                if datum is VaultDatum {
+                  ClassifiedInputs {
+                    ..accum,
+                    vault: ClassifiedVaultInputs {
+                      ..accum.vault,
+                      request: list.push(accum.vault.request, input),
+                    },
+                  }
+                } else {
+                  ClassifiedInputs {
+                    ..accum,
+                    vault: ClassifiedVaultInputs {
+                      ..accum.vault,
+                      pool: list.push(accum.vault.pool, input),
+                    },
+                  }
+                }
+              _ ->
+                ClassifiedInputs {
+                  ..accum,
+                  vault: ClassifiedVaultInputs {
+                    ..accum.vault,
+                    pool: list.push(accum.vault.pool, input),
+                  },
+                }
             }
           } else if script_hash == settings.protocol {
             ClassifiedInputs {
-              vault: accum.vault,
+              ..accum,
               protocol: list.push(accum.protocol, input),
             }
           } else {
@@ -147,4 +185,50 @@ pub fn classify_outputs(
 
 pub fn total_outputs_value(outputs: List<Output>) -> Value {
   list.foldl(outputs, zero, fn(output, accum) { merge(accum, output.value) })
+}
+
+pub fn total_inputs_value(inputs: List<Input>) -> Value {
+  list.foldl(
+    inputs,
+    zero,
+    fn(input, accum) { merge(accum, input.output.value) },
+  )
+}
+
+pub fn validate_reshuffle_return_utxo(
+  vault_output: Output,
+  pool_inputs_value: Value,
+  s2_tokens_in_request: List<AssetName>,
+  s2_qty_in_request: Int,
+  s2_policy_id: PolicyId,
+) -> Bool {
+  let ada_in_input = lovelace_of(pool_inputs_value)
+  let ada_in_output = lovelace_of(vault_output.value)
+  let input_ada_is_retained = ada_in_input == ada_in_output
+
+  let s2_qty_in_inputs = tokens(pool_inputs_value, s2_policy_id) |> size()
+  let expected_s2_qty_in_output = s2_qty_in_inputs - s2_qty_in_request
+  let s2_tokens_in_output = tokens(vault_output.value, s2_policy_id)
+  let actual_s2_qty_in_output = size(s2_tokens_in_output)
+  let valid_s2_qty_in_output =
+    actual_s2_qty_in_output == expected_s2_qty_in_output
+
+  let valid_reshuffled_s2_output =
+    list.all(
+      s2_tokens_in_request,
+      fn(token_name) { has_key(s2_tokens_in_output, token_name) },
+    )
+
+  let output_has_no_datum =
+    when vault_output.datum is {
+      NoDatum -> True
+      _ -> False
+    }
+
+  and {
+    input_ada_is_retained?,
+    valid_s2_qty_in_output?,
+    valid_reshuffled_s2_output?,
+    output_has_no_datum?,
+  }
 }

@@ -121,13 +121,12 @@ The protocol is mainly composed of 3 validators: `vault.ak`, `settings.ak`, and 
 
     - Redeemer `ReShuffle`:
 
-        1. One of the inputs should be the `settings` UTXO (expected, since also required by `vault`).
-        1. The own input of the `protocol` validator is retained at the `protocol` address.
-        1. There must be at least 2 inputs from the `vault`, no upper limit.
-        1. From the _vault inputs_ 1 and only 1 must contain in its datum the requesting user's address. This is the `request_input`.
-        1. All other _vault inputs_ must contain empty datums (`pool_inputs`).
-        1. However many S2 NFTs are in the `request_input`, the same should be taken from the `pool_inputs` and sent to the requesting user.
-        1. The S2 NFTs from the `request_input`, and the leftover lovelaces and NFTs from the `pool_inputs`, must be sent back to the `vault`, this time containing an empty datum.
+        1. ✅ One of the inputs should be the `settings` UTXO (expected, since also required by `vault`).
+        1. ✅ The own input of the `protocol` validator is retained at the `protocol` address.
+        1. ✅ There must be 1 and only 1 input from the _vault_ that contain in its datum the requesting user's address. This is the `request_input`.
+        1. ✅ There must be at least 1 other input from the _vault_ that contains empty datum (`pool_inputs`).
+        1. ✅ However many S2 NFTs are in the `request_input`, the same should be taken from the `pool_inputs` and sent to the requesting user.
+        1. ✅ The S2 NFTs from the `request_input`, and the leftover lovelaces and NFTs from the `pool_inputs`, must be sent back to the `vault`, this time containing an empty datum.
 
     - Redeemer `CancelShuffle`:
 
