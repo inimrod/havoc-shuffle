@@ -55,7 +55,7 @@ validator settings(admin: VerificationKeyHash) {
           }
         settings_output_valid && has_input_from_vault
       }
-      UpdateSettings -> is_signed_by(this_tx.extra_signatories, admin)
+      UpdateSettings -> is_signed_by(this_tx.extra_signatories, admin)?
       _ -> fail @"Invalid redeemer for settings::spend"
     }
   }

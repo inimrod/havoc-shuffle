@@ -33,8 +33,8 @@ pub fn input_output_match(
   let output_datum: Data = output.datum
   let datums_match = serialise_data(orig_datum) == serialise_data(output_datum)
   and {
-    values_match,
-    datums_match,
+    values_match?,
+    datums_match?,
   }
 }
 
