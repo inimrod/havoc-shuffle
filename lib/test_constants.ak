@@ -1,7 +1,7 @@
 use cardano/address.{Address, Inline, Script, VerificationKey}
 use cardano/assets.{from_asset, from_lovelace}
 use cardano/transaction.{InlineDatum, Input, NoDatum, Output, OutputReference}
-use types.{ProtocolParams, SettingsDatum, VaultDatum}
+use types.{ProtocolParams, SettingsDatum, VaultDatum, VaultParams}
 
 pub const settings_script_hash =
   #"00a0b79a29bb50da169ef9ee302aa8acca1dd62ba2d7fa57331847f0"
@@ -52,6 +52,13 @@ pub const protocol_script_address =
 
 pub const protocol_params =
   ProtocolParams {
+    admin: admin_key_hash,
+    settings_policy: settings_script_hash,
+    beacon_asset_name,
+  }
+
+pub const vault_params =
+  VaultParams {
     admin: admin_key_hash,
     settings_policy: settings_script_hash,
     beacon_asset_name,

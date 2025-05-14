@@ -20,7 +20,7 @@ validator vault(params: VaultParams) {
     expect Some(input_from_self) = find_input(this_tx.inputs, output_ref)
     let withdrawals = this_tx.withdrawals
     let this_acct = input_from_self.output.address.payment_credential
-    pairs.has_key(withdrawals, this_acct)
+    pairs.has_key(withdrawals, this_acct)?
   }
 
   withdraw(
@@ -36,10 +36,12 @@ validator vault(params: VaultParams) {
       )
     let protocol_input_maybe =
       find_script_input(this_tx.inputs, settings.protocol)
-    when protocol_input_maybe is {
-      Some(_) -> True
-      None -> False
-    }
+    let protocol_input_present =
+      when protocol_input_maybe is {
+        Some(_) -> True
+        None -> False
+      }
+    protocol_input_present?
   }
 
   else(context: ScriptContext) {

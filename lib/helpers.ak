@@ -199,7 +199,6 @@ pub fn validate_reshuffle_return_utxo(
   vault_output: Output,
   pool_inputs_value: Value,
   s2_tokens_in_request: List<AssetName>,
-  s2_qty_in_request: Int,
   s2_policy_id: PolicyId,
 ) -> Bool {
   let ada_in_input = lovelace_of(pool_inputs_value)
@@ -207,11 +206,13 @@ pub fn validate_reshuffle_return_utxo(
   let input_ada_is_retained = ada_in_input == ada_in_output
 
   let s2_qty_in_inputs = tokens(pool_inputs_value, s2_policy_id) |> size()
-  let expected_s2_qty_in_output = s2_qty_in_inputs - s2_qty_in_request
   let s2_tokens_in_output = tokens(vault_output.value, s2_policy_id)
-  let actual_s2_qty_in_output = size(s2_tokens_in_output)
-  let valid_s2_qty_in_output =
-    actual_s2_qty_in_output == expected_s2_qty_in_output
+  let s2_qty_in_output = size(s2_tokens_in_output)
+  let valid_s2_qty_in_output = s2_qty_in_output == s2_qty_in_inputs
+  trace @"s2_qty_in_inputs ": s2_qty_in_inputs
+  trace @"s2_tokens_in_output ": s2_tokens_in_output
+  trace @"s2_qty_in_output ": s2_qty_in_output
+  trace @"valid_s2_qty_in_output ": valid_s2_qty_in_output
 
   let valid_reshuffled_s2_output =
     list.all(

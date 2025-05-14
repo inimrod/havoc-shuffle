@@ -3,7 +3,7 @@
 use aiken/collection/dict.{keys, size}
 use aiken/collection/list
 use cardano/address.{Script, VerificationKey}
-use cardano/assets.{match, tokens}
+use cardano/assets.{is_zero, match, tokens}
 use cardano/script_context.{ScriptContext}
 use cardano/transaction.{InlineDatum, OutputReference, Transaction}
 use helpers.{
@@ -89,6 +89,7 @@ validator protocol(params: ProtocolParams) {
           )
         let protocol_output_valid =
           validate_protocol_output(this_tx, output_ref, settings)
+        let no_tokens_minted = is_zero(this_tx.mint)
         let classified_inputs = classify_inputs(this_tx.inputs, settings)
         let only_one_request_input =
           1 == list.length(classified_inputs.vault.request)
@@ -119,12 +120,12 @@ validator protocol(params: ProtocolParams) {
             vault_output,
             pool_inputs_value,
             keys(s2_tokens_in_request),
-            s2_qty_in_request,
             settings.s2_policy_id,
           )
 
         and {
           protocol_output_valid?,
+          no_tokens_minted?,
           only_one_request_input?,
           min_1_pool_input?,
           valid_s2_qty_in_user_output?,
