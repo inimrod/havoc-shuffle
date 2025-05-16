@@ -9,6 +9,7 @@ export const settingsScript: Script = {
 };
 export const settingsScriptHash = validatorToScriptHash(settingsScript);
 export const settingsScriptAddr = validatorToAddress(provNetwork, settingsScript, adminStakeCred);
+export const settingsPolicyID = settingsScriptHash;
 export const settingsBeaconTknName = fromText(`CONFIG`);
 console.log(`settingsScriptAddr: ${settingsScriptAddr}`);
 

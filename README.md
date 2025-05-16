@@ -147,28 +147,27 @@ that is used only to hold the UTXOs containing the compiled UPLC code of the val
 
     1. ✅ The transaction must be signed by the admin. This is useful only when the `protocol` validator is upgraded/retired.
 
-
 ## Usage / Testing
 
 1. **Deploy as `reference_scripts`**:
 
-    ```shell
-    deno task deploy-preprod
-    # or
-    deno task deploy-mainnet
-    ```
+   ```shell
+   deno task deploy-preprod
+   # or
+   deno task deploy-mainnet
+   ```
 
-    This will update/write results into file `data/deployed-{preprod | mainnet}.json`
+   This will update/write results into file `data/deployed-{preprod | mainnet}.json`
 
 1. **Un-deploy**:
 
-    Done only when updating reference scripts, or decommissioning.
+   Done only when updating reference scripts, or decommissioning.
 
-    ```shell
-    deno task undeploy-preprod
-    # or
-    deno task undeploy-mainnet
-    ```
+   ```shell
+   deno task undeploy-preprod
+   # or
+   deno task undeploy-mainnet
+   ```
 
 1. **Initilize `settings` and `protocol` UTXOs**
 1. **Mint some test S2 NFTs**
@@ -179,8 +178,7 @@ that is used only to hold the UTXOs containing the compiled UPLC code of the val
 1. **Cancel a `LiveShuffle` or `ReShuffle` request**
 1. **Update settings datum**
 
-
-
 ## Todo:
 
-1. ✅ Update `protocol` logic for `LiveShuffle`. Take into consideration that when minting, CIP68 ref tokens are also minted, not just user tokens.
+1. ✅ Update `protocol` logic for `LiveShuffle`. Take into consideration that when minting, CIP68 ref tokens are also minted,
+   not just user tokens.

@@ -5,8 +5,8 @@ import {
     deployed,
     getLucidInstance,
     provNetwork,
+    refscriptsRewardAddr,
     refscriptsScript,
-    refscriptsRewardAddr
 } from "../index.ts";
 import { Data, stringify } from "@lucid-evolution/lucid";
 
@@ -42,8 +42,6 @@ const tx0Hash = await signedTx0.submit();
 console.log(`tx submitted. Hash: ${tx0Hash}`);
 console.log("");
 */
-
-
 
 const refUtxos = await lucid.utxosAt(deployed.refscriptsScriptAddr);
 

@@ -5,10 +5,10 @@ import {
     getAddressDetails,
     Kupmios,
     Lucid,
+    mintingPolicyToId,
     Network,
     scriptFromNative,
-    mintingPolicyToId,
-    unixTimeToSlot
+    unixTimeToSlot,
 } from "@lucid-evolution/lucid";
 
 export const provNetwork = (Deno.args[0] || "Preprod") as Network;
@@ -148,7 +148,6 @@ export const deployed = await (async () => {
     }
 })();
 
-
 // For preprod testing:
 export const demoS2MintingScript = scriptFromNative({
     type: "all",
@@ -158,3 +157,5 @@ export const demoS2MintingScript = scriptFromNative({
     ],
 });
 export const demoS2PolicyId = mintingPolicyToId(demoS2MintingScript);
+
+export const s2PolicyId = provNetwork == "Mainnet" ? Deno.env.get("S2_POLICY_ID_MAINNET") as string : demoS2PolicyId;

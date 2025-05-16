@@ -1,4 +1,11 @@
-import { applyParamsToScript, fromText, Script, validatorToAddress, validatorToScriptHash, validatorToRewardAddress } from "@lucid-evolution/lucid";
+import {
+    applyParamsToScript,
+    fromText,
+    Script,
+    validatorToAddress,
+    validatorToRewardAddress,
+    validatorToScriptHash,
+} from "@lucid-evolution/lucid";
 import { adminPkh, adminStakeCred, blueprint, CredentialType, provNetwork } from "./common.ts";
 
 const refscriptsValidatorId = "refscripts.refscripts.spend";
@@ -13,7 +20,6 @@ export const refscriptsScriptAddr = validatorToAddress(provNetwork, refscriptsSc
 console.log(`refscriptsScriptAddr: ${refscriptsScriptAddr}`);
 export const refscriptsCredential = { type: CredentialType.script, hash: refscriptsScriptHash };
 export const refscriptsRewardAddr = validatorToRewardAddress(provNetwork, refscriptsScript);
-
 
 /**
  * Beacon tokens for the utxos that will hold the protocol's reference scripts

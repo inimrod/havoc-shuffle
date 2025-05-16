@@ -1,22 +1,22 @@
 import {
-    adminAddress,
+    // adminAddress,
     adminPkh,
     beaconTokens,
     deployDetailsFile,
     deployed,
-    getDeployUtxos,
+    // getDeployUtxos,
     getLucidInstance,
     protocolScript,
     protocolScriptAddr,
     provNetwork,
     refscriptsPolicyID,
+    refscriptsRewardAddr,
     refscriptsScript,
     refscriptsScriptAddr,
     settingsScript,
     settingsScriptAddr,
     vaultScript,
     vaultScriptAddr,
-    refscriptsRewardAddr
 } from "../index.ts";
 import { Data, stringify, UTxO } from "@lucid-evolution/lucid";
 
@@ -29,7 +29,7 @@ if (deployed && deployed.referenceUtxos) {
 console.log(`Using network: ${provNetwork}`);
 const lucid = getLucidInstance();
 
-// There are 2 txs here:
+// These 2 txs are already combined here:
 // 1. mint beacon tokens for the refscripts
 // 2. deploy compiled refscripts into UTXOs with beacon tokens
 
@@ -85,7 +85,6 @@ console.log("");
 const txHash = await signedTx.submit();
 console.log(`tx submitted. Hash: ${txHash}`);
 console.log("");
-
 
 const refscriptsRefUtxo: UTxO = derivedOutputs.find((utxo) => {
     if (utxo.assets[beaconTokens.refscripts]) return true;
