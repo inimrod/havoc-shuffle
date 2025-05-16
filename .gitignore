@@ -4,3 +4,7 @@ artifacts/
 build/
 # Aiken's default documentation export
 docs/
+
+plutus.json
+.env
+node_modules
