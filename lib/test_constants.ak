@@ -148,6 +148,9 @@ pub const protocol_input =
 pub const hw_s2_1042_value =
   from_asset(s2_policy_id, #"000de14048572053322031303432", 1)
 
+pub const hw_s2_1042_ref_value =
+  from_asset(s2_policy_id, #"000643b048572053322031303432", 1)
+
 pub const user_liveshuffle_output_ref =
   OutputReference {
     transaction_id: #"0000000000000000000000000000000000000000000000000000000000000004",

@@ -1,3 +1,4 @@
+use cardano/assets.{merge}
 use cardano/transaction.{NoDatum, Output, Transaction, placeholder}
 use protocol
 use test_constants as tc
@@ -7,7 +8,7 @@ test live_shuffle_succeed() {
   let this_tx =
     Transaction {
       ..placeholder,
-      mint: tc.hw_s2_1042_value,
+      mint: merge(tc.hw_s2_1042_value, tc.hw_s2_1042_ref_value),
       inputs: [
         tc.settings_input,
         tc.vault_input_request,

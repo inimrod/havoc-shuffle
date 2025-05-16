@@ -1,15 +1,17 @@
 use aiken/builtin.{serialise_data}
-use aiken/collection/dict.{has_key, size}
+use aiken/collection/dict.{foldl, has_key, size}
 use aiken/collection/list
 use aiken/crypto.{ScriptHash}
+use aiken/primitive/bytearray
 use cardano/address.{Address, Script}
 use cardano/assets.{
-  AssetName, PolicyId, Value, lovelace_of, match, merge, quantity_of, tokens,
-  zero,
+  AssetName, PolicyId, Value, from_asset, lovelace_of, match, merge, quantity_of,
+  tokens, zero,
 }
 use cardano/transaction.{
   InlineDatum, Input, NoDatum, Output, OutputReference, Transaction, find_input,
 }
+use constants.{prefix_222}
 use types.{
   ClassifiedInputs, ClassifiedOutputs, ClassifiedVaultInputs, SettingsDatum,
   VaultDatum,
@@ -55,6 +57,7 @@ pub fn get_settings(
   settings
 }
 
+/// Checks that the utxo from the `protocol` contract is returned
 pub fn validate_protocol_output(
   tx: Transaction,
   output_ref: OutputReference,
@@ -64,6 +67,29 @@ pub fn validate_protocol_output(
   expect Some(output_to_self) =
     find_script_output(tx.outputs, settings.protocol)
   input_output_match(input_from_self, None, output_to_self)
+}
+
+pub fn validate_liveshuffle_user_output(
+  minted: Value,
+  user_output: Output,
+  settings: SettingsDatum,
+) -> Bool {
+  let s2_policy_id = settings.s2_policy_id
+  let minted_dict = tokens(minted, s2_policy_id)
+  let minted_user_tokens =
+    foldl(
+      minted_dict,
+      zero,
+      fn(token_name, qty, accum) {
+        if prefix_222 == bytearray.slice(token_name, 0, 3) {
+          let user_token_value = from_asset(s2_policy_id, token_name, qty)
+          merge(accum, user_token_value)
+        } else {
+          accum
+        }
+      },
+    )
+  match(minted_user_tokens, user_output.value, <=)
 }
 
 pub fn validate_liveshuffle_return_utxo(input: Input, output: Output) -> Bool {
@@ -76,6 +102,7 @@ pub fn validate_liveshuffle_return_utxo(input: Input, output: Output) -> Bool {
   valid_values? && output_has_no_datum?
 }
 
+/// Classifies inputs according to their source. i.e. from the `vault` and `protocol` contracts
 pub fn classify_inputs(
   inputs: List<Input>,
   settings: SettingsDatum,
@@ -132,6 +159,7 @@ pub fn classify_inputs(
   )
 }
 
+/// Classifies outputs according to destination.
 pub fn classify_outputs(
   outputs: List<Output>,
   settings: SettingsDatum,

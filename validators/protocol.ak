@@ -9,7 +9,8 @@ use cardano/transaction.{InlineDatum, OutputReference, Transaction}
 use helpers.{
   classify_inputs, classify_outputs, get_settings, total_inputs_value,
   total_outputs_value, validate_liveshuffle_return_utxo,
-  validate_protocol_output, validate_reshuffle_return_utxo,
+  validate_liveshuffle_user_output, validate_protocol_output,
+  validate_reshuffle_return_utxo,
 }
 use types.{
   Administer, CancelShuffle, LiveShuffle, ProtocolParams, ReShuffle,
@@ -58,8 +59,12 @@ validator protocol(params: ProtocolParams) {
           tokens(this_tx.mint, settings.s2_policy_id) |> size()
         let valid_shuffle_qty =
           input_nfts_qty >= 1 && input_nfts_qty <= settings.max_to_shuffle
-        let valid_mint_qty = minted_nfts_qty == input_nfts_qty
-        let valid_mint_recipient = match(this_tx.mint, user_output.value, <=)
+
+        // CIP68 tokens are always minted in pairs: the user and the reference tokens
+        let valid_mint_qty = minted_nfts_qty == input_nfts_qty * 2
+
+        let valid_mint_recipient =
+          validate_liveshuffle_user_output(this_tx.mint, user_output, settings)
 
         let only_one_user_output = 1 == list.length(classified_outputs.user)
         let only_one_vault_output = 1 == list.length(classified_outputs.vault)

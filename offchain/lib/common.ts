@@ -6,6 +6,9 @@ import {
     Kupmios,
     Lucid,
     Network,
+    scriptFromNative,
+    mintingPolicyToId,
+    unixTimeToSlot
 } from "@lucid-evolution/lucid";
 
 export const provNetwork = (Deno.args[0] || "Preprod") as Network;
@@ -144,3 +147,14 @@ export const deployed = await (async () => {
         return undefined;
     }
 })();
+
+
+// For preprod testing:
+export const demoS2MintingScript = scriptFromNative({
+    type: "all",
+    scripts: [
+        { type: "sig", keyHash: adminPkh },
+        { type: "after", slot: unixTimeToSlot(lucid.config().network as Network, 1747405756000) },
+    ],
+});
+export const demoS2PolicyId = mintingPolicyToId(demoS2MintingScript);
