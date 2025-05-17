@@ -8,7 +8,8 @@ import {
     mintingPolicyToId,
     Network,
     scriptFromNative,
-    unixTimeToSlot,
+    fromText,
+    // unixTimeToSlot,
 } from "@lucid-evolution/lucid";
 
 export const provNetwork = (Deno.args[0] || "Preprod") as Network;
@@ -153,9 +154,24 @@ export const demoS2MintingScript = scriptFromNative({
     type: "all",
     scripts: [
         { type: "sig", keyHash: adminPkh },
-        { type: "after", slot: unixTimeToSlot(lucid.config().network as Network, 1747405756000) },
+        // { type: "after", slot: unixTimeToSlot(lucid.config().network as Network, 0) },
     ],
 });
 export const demoS2PolicyId = mintingPolicyToId(demoS2MintingScript);
 
 export const s2PolicyId = provNetwork == "Mainnet" ? Deno.env.get("S2_POLICY_ID_MAINNET") as string : demoS2PolicyId;
+
+export const prefix_100 = "000643b0";
+export const prefix_222 = "000de140";
+
+export const testS2NFTs = {
+    "HW S2 0999": `${s2PolicyId}${prefix_222}${fromText("HW S2 0999")}`,
+    "HW S2 1000": `${s2PolicyId}${prefix_222}${fromText("HW S2 1000")}`,
+}
+
+export const testLiveShuffleNFTs = {
+    "HW S2 1069 Ref": `${s2PolicyId}${prefix_100}${fromText("HW S2 1069")}`,
+    "HW S2 1069 Usr": `${s2PolicyId}${prefix_222}${fromText("HW S2 1069")}`,
+    "HW S2 0069 Ref": `${s2PolicyId}${prefix_100}${fromText("HW S2 0069")}`,
+    "HW S2 0069 Usr": `${s2PolicyId}${prefix_222}${fromText("HW S2 0069")}`,
+}

@@ -159,9 +159,7 @@ that is used only to hold the UTXOs containing the compiled UPLC code of the val
 
    This will update/write results into file `data/deployed-{preprod | mainnet}.json`
 
-1. **Un-deploy**:
-
-   Done only when updating reference scripts, or decommissioning.
+   To **Un-deploy**, when updating reference scripts, or decommissioning:
 
    ```shell
    deno task undeploy-preprod
@@ -170,9 +168,38 @@ that is used only to hold the UTXOs containing the compiled UPLC code of the val
    ```
 
 1. **Initilize `settings` and `protocol` UTXOs**
+
+   ```shell
+   deno task init-settings-preprod
+   # or
+   deno task init-settings-mainnet
+   ```
+
+   To un-initialize:
+   ```shell
+   deno task remove-settings-preprod
+   # or
+   deno task remove-settings-mainnet
+   ```
+
 1. **Mint some test S2 NFTs**
+
+   ```shell
+   deno task mint-s2-preprod
+   ```
+
 1. **Make a `LiveShuffle` request**
+
+   ```shell
+   deno task liveshuffle-req-preprod
+   ```
+
 1. **Fulfill a `LiveShuffle` request**
+
+   ```shell
+   deno task liveshuffle-fulfill-preprod
+   ```
+
 1. **Make a `ReShuffle` request**
 1. **Fulfill a `ReShuffle` request**
 1. **Cancel a `LiveShuffle` or `ReShuffle` request**
@@ -180,5 +207,5 @@ that is used only to hold the UTXOs containing the compiled UPLC code of the val
 
 ## Todo:
 
-1. ✅ Update `protocol` logic for `LiveShuffle`. Take into consideration that when minting, CIP68 ref tokens are also minted,
-   not just user tokens.
+1. ✅ Update `protocol` logic for `LiveShuffle`. Take into consideration that when minting, CIP68 ref tokens are also minted, not just user tokens.
+1. Shuffle validation - add checking of lovelace amount sent back to the vault.

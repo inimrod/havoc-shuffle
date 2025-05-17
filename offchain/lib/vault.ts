@@ -1,5 +1,5 @@
-import { applyParamsToScript, Data, Script, validatorToAddress, validatorToScriptHash } from "@lucid-evolution/lucid";
-import { AddressObj, AddressSchema, adminPkh, adminStakeCred, blueprint, provNetwork } from "./common.ts";
+import { applyParamsToScript, Data, Script, validatorToAddress, validatorToScriptHash, validatorToRewardAddress } from "@lucid-evolution/lucid";
+import { AddressObj, AddressSchema, adminPkh, adminStakeCred, blueprint, CredentialType, provNetwork } from "./common.ts";
 import { settingsBeaconTknName, settingsScriptHash } from "./settings.ts";
 
 const VaultValParamsSchema = Data.Object({
@@ -25,6 +25,8 @@ export const vaultScript: Script = {
 export const vaultScriptHash = validatorToScriptHash(vaultScript);
 export const vaultScriptAddr = validatorToAddress(provNetwork, vaultScript, adminStakeCred);
 console.log(`vaultScriptAddr: ${vaultScriptAddr}`);
+export const vaultScriptCredential = { type: CredentialType.script, hash: vaultScriptHash };
+export const vaultScriptRewardAddr = validatorToRewardAddress(provNetwork, vaultScript);
 
 export type VaultDatumObj = {
     owner: AddressObj;

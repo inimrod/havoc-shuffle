@@ -2,19 +2,13 @@ import {
     adminPkh,
     deployed,
     getLucidInstance,
-    makeSettingsDatum,
-    protocolScriptAddr,
-    protocolScriptHash,
     RedeemerType,
-    s2PolicyId,
     settingsBeaconTknName,
-    SettingsDatumObj,
     settingsPolicyID,
     settingsScriptAddr,
     UnifiedRedeemer,
-    vaultScriptHash,
 } from "../index.ts";
-import { Data, Datum, stringify } from "@lucid-evolution/lucid";
+import { Data, stringify } from "@lucid-evolution/lucid";
 
 if (!deployed || !deployed.referenceUtxos) {
     console.log(`Reference UTXOs not yet deployed. Exiting...`);
@@ -23,38 +17,34 @@ if (!deployed || !deployed.referenceUtxos) {
 
 const lucid = getLucidInstance();
 
+// reference script
 const refUtxos = await lucid.utxosAt(deployed.refscriptsScriptAddr);
 const settingsRefUtxo = refUtxos.find((utxo) => {
     if (utxo.assets[deployed.beaconTokens.settings]) return true;
     else return false;
 })!;
 
-const cfgBeaconAsset = settingsPolicyID + settingsBeaconTknName;
-const assetsToMint = {
-    [cfgBeaconAsset]: 1n,
-};
-const mintCfgBeacon: UnifiedRedeemer = RedeemerType.MintBeaconToken;
-const mintCfgBeaconRedeemer = Data.to(mintCfgBeacon, UnifiedRedeemer);
+// settings utxo
+const settingsUtxos = await lucid.utxosAt(settingsScriptAddr);
+const settingsUtxo = settingsUtxos.find((utxo) => {
+    if (utxo.assets[settingsPolicyID + settingsBeaconTknName]) return true;
+    else return false;
+})!;
 
-const cfgDatumObj: SettingsDatumObj = {
-    vault: vaultScriptHash,
-    protocol: protocolScriptHash,
-    s2_policy_id: s2PolicyId,
-    max_to_shuffle: 5n,
+const cfgBeaconAsset = settingsPolicyID + settingsBeaconTknName;
+const assetsToBurn = {
+    [cfgBeaconAsset]: -1n,
 };
-const cfgDatum = makeSettingsDatum(cfgDatumObj);
+const burnCfgBeacon: UnifiedRedeemer = RedeemerType.BurnBeaconToken;
+const burnCfgBeaconRedeemer = Data.to(burnCfgBeacon, UnifiedRedeemer);
+
+const updateCfg: UnifiedRedeemer = RedeemerType.UpdateSettings;
+const updateCfgRedeemer = Data.to(updateCfg, UnifiedRedeemer);
+
 const tx = await lucid
     .newTx()
-    .mintAssets(assetsToMint, mintCfgBeaconRedeemer)
-    .pay.ToContract(
-        settingsScriptAddr,
-        { kind: "inline", value: cfgDatum as Datum },
-        { [cfgBeaconAsset]: 1n },
-    )
-    .pay.ToContract(
-        protocolScriptAddr,
-        { kind: "inline", value: Data.void() },
-    )
+    .mintAssets(assetsToBurn, burnCfgBeaconRedeemer)
+    .collectFrom([settingsUtxo], updateCfgRedeemer)
     .addSignerKey(adminPkh)
     .readFrom([settingsRefUtxo])
     .complete();

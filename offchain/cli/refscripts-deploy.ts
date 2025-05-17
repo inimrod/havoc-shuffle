@@ -17,6 +17,7 @@ import {
     settingsScriptAddr,
     vaultScript,
     vaultScriptAddr,
+    vaultScriptRewardAddr
 } from "../index.ts";
 import { Data, stringify, UTxO } from "@lucid-evolution/lucid";
 
@@ -43,6 +44,7 @@ const [_newWalletInputs, derivedOutputs, tx] = await lucid
     .newTx()
     .mintAssets(assetsToMint, Data.void())
     .register.Stake(refscriptsRewardAddr)
+    .register.Stake(vaultScriptRewardAddr)
     .pay.ToContract(
         refscriptsScriptAddr,
         { kind: "inline", value: Data.void() },
