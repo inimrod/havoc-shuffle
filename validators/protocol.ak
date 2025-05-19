@@ -1,6 +1,6 @@
 //// This contains the main validator business logic
 
-use aiken/collection/dict.{keys, size}
+use aiken/collection/dict.{keys, size, to_pairs}
 use aiken/collection/list
 use cardano/address.{Script, VerificationKey}
 use cardano/assets.{is_zero, match, tokens}
@@ -8,9 +8,9 @@ use cardano/script_context.{ScriptContext}
 use cardano/transaction.{InlineDatum, OutputReference, Transaction}
 use helpers.{
   classify_inputs, classify_outputs, get_settings, total_inputs_value,
-  total_outputs_value, validate_liveshuffle_return_utxo,
-  validate_liveshuffle_user_output, validate_protocol_output,
-  validate_reshuffle_return_utxo,
+  total_outputs_value, validate_cancel_shuffle_user_output,
+  validate_liveshuffle_return_utxo, validate_liveshuffle_user_output,
+  validate_protocol_output, validate_reshuffle_return_utxo,
 }
 use types.{
   Administer, CancelShuffle, LiveShuffle, ProtocolParams, ReShuffle,
@@ -55,8 +55,10 @@ validator protocol(params: ProtocolParams) {
 
         let input_nfts_qty =
           tokens(vault_input.output.value, settings.s2_policy_id) |> size()
+        trace @"input_nfts_qty ": input_nfts_qty
         let minted_nfts_qty =
           tokens(this_tx.mint, settings.s2_policy_id) |> size()
+        trace @"minted_nfts_qty ": minted_nfts_qty
         let valid_shuffle_qty =
           input_nfts_qty >= 1 && input_nfts_qty <= settings.max_to_shuffle
 
@@ -151,21 +153,31 @@ validator protocol(params: ProtocolParams) {
             1 == list.length(classified_inputs.vault.request),
             0 == list.length(classified_inputs.vault.pool),
           }
-        expect Some(vault_input) = list.head(classified_inputs.vault.request)
-        expect InlineDatum(vault_datum) = vault_input.output.datum
-        expect vault_datum: VaultDatum = vault_datum
+        expect Some(request_input) = list.head(classified_inputs.vault.request)
+        expect InlineDatum(request_datum) = request_input.output.datum
+        expect request_datum: VaultDatum = request_datum
+
+        let s2_tokens_in_request =
+          tokens(request_input.output.value, settings.s2_policy_id)
+            |> to_pairs()
+
         let classified_outputs =
           classify_outputs(
             this_tx.outputs,
             settings,
             params.settings_policy,
-            vault_datum.owner,
+            request_datum.owner,
           )
         let user_output_value = total_outputs_value(classified_outputs.user)
+        let s2_tokens_in_output =
+          tokens(user_output_value, settings.s2_policy_id)
         let user_output_valid =
-          match(vault_input.output.value, user_output_value, <=)
+          validate_cancel_shuffle_user_output(
+            s2_tokens_in_request,
+            s2_tokens_in_output,
+          )
         let owner =
-          when vault_datum.owner.payment_credential is {
+          when request_datum.owner.payment_credential is {
             VerificationKey(hash) -> hash
             Script(hash) -> hash
           }

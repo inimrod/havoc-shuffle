@@ -1,7 +1,8 @@
 use aiken/builtin.{serialise_data}
-use aiken/collection/dict.{foldl, has_key, size}
+use aiken/collection/dict.{Dict, foldl, get, has_key, size}
 use aiken/collection/list
 use aiken/crypto.{ScriptHash}
+use aiken/option.{or_else}
 use aiken/primitive/bytearray
 use cardano/address.{Address, Script}
 use cardano/assets.{
@@ -82,6 +83,8 @@ pub fn validate_liveshuffle_user_output(
       zero,
       fn(token_name, qty, accum) {
         if prefix_222 == bytearray.slice(token_name, 0, 3) {
+          trace @"token_name": token_name
+          trace @"prefix": bytearray.slice(token_name, 0, 3)
           let user_token_value = from_asset(s2_policy_id, token_name, qty)
           merge(accum, user_token_value)
         } else {
@@ -89,6 +92,8 @@ pub fn validate_liveshuffle_user_output(
         }
       },
     )
+  trace @"minted_user_tokens": minted_user_tokens
+  trace @"user_output.value": user_output.value
   match(minted_user_tokens, user_output.value, <=)
 }
 
@@ -178,6 +183,11 @@ pub fn classify_outputs(
     },
     fn(output, accum) {
       if output.address == user_address {
+        trace @"user output:"
+        trace @"output.address": output.address
+        trace @"user_address": user_address
+        trace @"output": output
+        trace @"-------"
         ClassifiedOutputs { ..accum, user: list.push(accum.user, output) }
       } else {
         when output.address.payment_credential is {
@@ -260,4 +270,20 @@ pub fn validate_reshuffle_return_utxo(
     valid_reshuffled_s2_output?,
     output_has_no_datum?,
   }
+}
+
+pub fn validate_cancel_shuffle_user_output(
+  s2_tokens_in_request: Pairs<AssetName, Int>,
+  s2_tokens_in_output: Dict<AssetName, Int>,
+) -> Bool {
+  list.all(
+    s2_tokens_in_request,
+    fn(tkn_pair) {
+      let token_name = tkn_pair.1st
+      let token_qty = tkn_pair.2nd
+      let token_qty_in_output =
+        get(s2_tokens_in_output, token_name) |> or_else(0)
+      token_qty == token_qty_in_output
+    },
+  )
 }
