@@ -34,7 +34,7 @@ export type VaultDatumObj = {
 export const VaultDatumSchema = Data.Object({
     owner: AddressSchema,
 });
-type VaultDatum = Data.Static<typeof VaultDatumSchema>;
+export type VaultDatum = Data.Static<typeof VaultDatumSchema>;
 export const VaultDatum = VaultDatumSchema as unknown as VaultDatum;
 
 export function makeVaultDatum(obj: VaultDatumObj): Data {

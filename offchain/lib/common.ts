@@ -2,13 +2,13 @@ import {
     Credential,
     credentialToRewardAddress,
     Data,
+    fromText,
     getAddressDetails,
     Kupmios,
     Lucid,
     mintingPolicyToId,
     Network,
     scriptFromNative,
-    fromText,
     // unixTimeToSlot,
 } from "@lucid-evolution/lucid";
 
@@ -22,9 +22,10 @@ const ogmiosUrl = provNetwork == "Mainnet"
 export const providerKupmios = new Kupmios(kupoUrl, ogmiosUrl);
 
 const lucid = await Lucid(providerKupmios, provNetwork);
-const WALLET_SEED = Deno.env.get("WALLET_SEED") as string;
+export const ADMIN_WALLET_SEED = Deno.env.get("ADMIN_WALLET_SEED") as string;
+export const USER_WALLET_SEED = Deno.env.get("USER_WALLET_SEED") as string;
 
-lucid.selectWallet.fromSeed(WALLET_SEED);
+lucid.selectWallet.fromSeed(ADMIN_WALLET_SEED);
 
 export function getLucidInstance() {
     return lucid;
@@ -167,11 +168,19 @@ export const prefix_222 = "000de140";
 export const testS2NFTs = {
     "HW S2 0999": `${s2PolicyId}${prefix_222}${fromText("HW S2 0999")}`,
     "HW S2 1000": `${s2PolicyId}${prefix_222}${fromText("HW S2 1000")}`,
-}
+};
 
 export const testLiveShuffleNFTs = {
     "HW S2 1069 Ref": `${s2PolicyId}${prefix_100}${fromText("HW S2 1069")}`,
     "HW S2 1069 Usr": `${s2PolicyId}${prefix_222}${fromText("HW S2 1069")}`,
     "HW S2 0069 Ref": `${s2PolicyId}${prefix_100}${fromText("HW S2 0069")}`,
     "HW S2 0069 Usr": `${s2PolicyId}${prefix_222}${fromText("HW S2 0069")}`,
-}
+};
+
+export const refTokensValidatorHash = provNetwork == "Mainnet" 
+    ? Deno.env.get("HVC_S2_REFTOKENS_VAL_HASH_MAINNET") as string 
+    : Deno.env.get("HVC_S2_REFTOKENS_VAL_HASH_PREPROD") as string;
+
+export const refTokensValidatorAddr = provNetwork == "Mainnet" 
+    ? Deno.env.get("HVC_S2_REFTOKENS_VAL_ADDR_MAINNET") as string 
+    : Deno.env.get("HVC_S2_REFTOKENS_VAL_ADDR_PREPROD") as string;

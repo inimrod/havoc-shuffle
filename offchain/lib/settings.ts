@@ -14,12 +14,16 @@ export const settingsBeaconTknName = fromText(`CONFIG`);
 console.log(`settingsScriptAddr: ${settingsScriptAddr}`);
 
 export type SettingsDatumObj = {
+    refscripts: string;
+    reftokens: string;
     vault: string;
     protocol: string;
     s2_policy_id: string;
     max_to_shuffle: bigint;
 };
 export const SettingsDatumSchema = Data.Object({
+    refscripts: Data.Bytes({ minLength: 28, maxLength: 28 }),
+    reftokens: Data.Bytes({ minLength: 28, maxLength: 28 }),
     vault: Data.Bytes({ minLength: 28, maxLength: 28 }),
     protocol: Data.Bytes({ minLength: 28, maxLength: 28 }),
     s2_policy_id: Data.Bytes({ minLength: 28, maxLength: 28 }),

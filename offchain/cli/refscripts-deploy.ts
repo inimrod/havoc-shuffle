@@ -17,7 +17,7 @@ import {
     settingsScriptAddr,
     vaultScript,
     vaultScriptAddr,
-    vaultScriptRewardAddr
+    vaultScriptRewardAddr,
 } from "../index.ts";
 import { Data, stringify, UTxO } from "@lucid-evolution/lucid";
 

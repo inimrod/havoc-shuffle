@@ -1,11 +1,4 @@
-import {
-    adminPkh,
-    demoS2MintingScript,
-    deployed,
-    getLucidInstance,    
-    provNetwork,    
-    testS2NFTs
-} from "../index.ts";
+import { adminPkh, demoS2MintingScript, deployed, getLucidInstance, provNetwork, testS2NFTs } from "../index.ts";
 import { Data, stringify } from "@lucid-evolution/lucid";
 
 if (!deployed || !deployed.referenceUtxos) {

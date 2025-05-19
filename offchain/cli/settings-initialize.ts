@@ -13,6 +13,8 @@ import {
     settingsScriptAddr,
     UnifiedRedeemer,
     vaultScriptHash,
+    refscriptsScriptHash,
+    refTokensValidatorHash
 } from "../index.ts";
 import { Data, Datum, stringify } from "@lucid-evolution/lucid";
 
@@ -37,6 +39,8 @@ const mintCfgBeacon: UnifiedRedeemer = RedeemerType.MintBeaconToken;
 const mintCfgBeaconRedeemer = Data.to(mintCfgBeacon, UnifiedRedeemer);
 
 const cfgDatumObj: SettingsDatumObj = {
+    refscripts: refscriptsScriptHash,
+    reftokens: refTokensValidatorHash,
     vault: vaultScriptHash,
     protocol: protocolScriptHash,
     s2_policy_id: s2PolicyId,

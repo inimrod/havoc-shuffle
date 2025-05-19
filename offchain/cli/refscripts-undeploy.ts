@@ -7,6 +7,8 @@ import {
     provNetwork,
     refscriptsRewardAddr,
     refscriptsScript,
+    vaultScriptRewardAddr,
+    vaultScript
 } from "../index.ts";
 import { Data, stringify } from "@lucid-evolution/lucid";
 
@@ -57,7 +59,9 @@ const tx = await lucid
     .collectFrom(refUtxos, Data.void())
     .withdraw(refscriptsRewardAddr, 0n, Data.void())
     .deregister.Stake(refscriptsRewardAddr, Data.void())
+    .deregister.Stake(vaultScriptRewardAddr, Data.void())
     .attach.Script(refscriptsScript)
+    .attach.Script(vaultScript)
     .addSignerKey(adminPkh)
     .complete();
 console.log(`undeploy refscripts tx built`);

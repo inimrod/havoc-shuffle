@@ -194,6 +194,12 @@ that is used only to hold the UTXOs containing the compiled UPLC code of the val
    deno task liveshuffle-req-preprod
    ```
 
+   **Cancel a `LiveShuffle` or `ReShuffle` request**
+
+   ```shell
+   deno task cancel-shuffle-preprod
+   ```
+
 1. **Fulfill a `LiveShuffle` request**
 
    ```shell
@@ -202,10 +208,18 @@ that is used only to hold the UTXOs containing the compiled UPLC code of the val
 
 1. **Make a `ReShuffle` request**
 1. **Fulfill a `ReShuffle` request**
-1. **Cancel a `LiveShuffle` or `ReShuffle` request**
 1. **Update settings datum**
 
 ## Todo:
 
-1. ✅ Update `protocol` logic for `LiveShuffle`. Take into consideration that when minting, CIP68 ref tokens are also minted, not just user tokens.
+1. ✅ Update `protocol` logic for `LiveShuffle`. Take into consideration that when minting, CIP68 ref tokens are also minted,
+   not just user tokens.
 1. Shuffle validation - add checking of lovelace amount sent back to the vault.
+1. ✅ Protocol :: CancelShuffle - `user_output_valid`: replace with a check for the returned assets, not really Value "match"
+1. ✅ Consider CIP68 ref tokens being sent to refscriptsAddr when classifying outputs for LiveShuffle
+1. ✅ Include refscriptsAddr in settings UTXO
+1. Use lucid's redeemer builder for settings and protocol utxo validation
+
+## Random Notes:
+
+- Quickly convert utf8 to hex string via cli: `echo -n "string" | xxd -ps -c 1000`
