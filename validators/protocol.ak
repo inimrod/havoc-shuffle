@@ -3,7 +3,7 @@
 use aiken/collection/dict.{keys, size, to_pairs}
 use aiken/collection/list
 use cardano/address.{Script, VerificationKey}
-use cardano/assets.{is_zero, match, tokens}
+use cardano/assets.{is_zero, tokens}
 use cardano/script_context.{ScriptContext}
 use cardano/transaction.{InlineDatum, OutputReference, Transaction}
 use helpers.{

@@ -7,7 +7,7 @@ test read_settings_succeed() {
   let this_tx =
     Transaction {
       ..placeholder,
-      mint: tc.hw_s2_1042_value,
+      mint: tc.hw_s2_1042_usr,
       inputs: [
         tc.settings_input,
         tc.vault_input_request,
@@ -18,7 +18,7 @@ test read_settings_succeed() {
         tc.settings_output,
         tc.vault_output_pool,
         tc.protocol_output,
-        tc.user_liveshuffle_output,
+        tc.user_liveshuffle_output_from_mint,
       ],
     }
   let datum = Some(tc.settings_datum)
@@ -40,7 +40,7 @@ test read_settings_fail() {
   let this_tx =
     Transaction {
       ..placeholder,
-      mint: tc.hw_s2_1042_value,
+      mint: tc.hw_s2_1042_usr,
       inputs: [
         tc.settings_input,
         tc.vault_input_request,
@@ -51,7 +51,7 @@ test read_settings_fail() {
         settings_output,
         tc.vault_output_pool,
         tc.protocol_output,
-        tc.user_liveshuffle_output,
+        tc.user_liveshuffle_output_from_mint,
       ],
     }
   let datum = Some(tc.settings_datum)

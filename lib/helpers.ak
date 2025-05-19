@@ -171,10 +171,12 @@ pub fn classify_outputs(
   settings_hash: ScriptHash,
   user_address: Address,
 ) -> ClassifiedOutputs {
-  let SettingsDatum { vault, protocol, .. } = settings
+  let SettingsDatum { refscripts, reftokens, vault, protocol, .. } = settings
   list.foldl(
     outputs,
     ClassifiedOutputs {
+      refscripts: [],
+      reftokens: [],
       vault: [],
       protocol: [],
       settings: [],
@@ -192,7 +194,17 @@ pub fn classify_outputs(
       } else {
         when output.address.payment_credential is {
           Script(script_hash) ->
-            if script_hash == vault {
+            if script_hash == refscripts {
+              ClassifiedOutputs {
+                ..accum,
+                refscripts: list.push(accum.refscripts, output),
+              }
+            } else if script_hash == reftokens {
+              ClassifiedOutputs {
+                ..accum,
+                reftokens: list.push(accum.reftokens, output),
+              }
+            } else if script_hash == vault {
               ClassifiedOutputs {
                 ..accum,
                 vault: list.push(accum.vault, output),

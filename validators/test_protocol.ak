@@ -1,14 +1,24 @@
-use cardano/assets.{merge}
+use cardano/assets.{from_asset, merge, zero}
 use cardano/transaction.{NoDatum, Output, Transaction, placeholder}
 use protocol
 use test_constants as tc
 use types.{CancelShuffle, LiveShuffle, ReShuffle}
 
 test live_shuffle_succeed() {
+  // HW S2 1069 Ref
+  // HW S2 1069 Usr
+  // HW S2 0069 Ref
+  // HW S2 0069 Usr
+  let mint_value =
+    zero
+      |> merge(from_asset(tc.s2_policy_id, #"000643b048572053322031303639", 1))
+      |> merge(from_asset(tc.s2_policy_id, #"000de14048572053322031303639", 1))
+      |> merge(from_asset(tc.s2_policy_id, #"000643b048572053322030303639", 1))
+      |> merge(from_asset(tc.s2_policy_id, #"000de14048572053322030303639", 1))
   let this_tx =
     Transaction {
       ..placeholder,
-      mint: merge(tc.hw_s2_1042_value, tc.hw_s2_1042_ref_value),
+      mint: mint_value,
       inputs: [
         tc.settings_input,
         tc.vault_input_request,
@@ -19,7 +29,7 @@ test live_shuffle_succeed() {
         tc.settings_output,
         tc.vault_output_pool,
         tc.protocol_output,
-        tc.user_liveshuffle_output,
+        tc.user_liveshuffle_output_from_mint,
       ],
     }
   let redeemer = LiveShuffle

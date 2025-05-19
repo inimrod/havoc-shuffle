@@ -18,6 +18,8 @@ pub type UnifiedRedeemer {
 }
 
 pub type SettingsDatum {
+  refscripts: ScriptHash,
+  reftokens: ScriptHash,
   vault: ScriptHash,
   protocol: ScriptHash,
   s2_policy_id: PolicyId,
@@ -51,6 +53,8 @@ pub type ClassifiedInputs {
 }
 
 pub type ClassifiedOutputs {
+  refscripts: List<Output>,
+  reftokens: List<Output>,
   vault: List<Output>,
   protocol: List<Output>,
   settings: List<Output>,
