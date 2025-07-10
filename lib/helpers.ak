@@ -1,4 +1,3 @@
-use aiken/builtin.{serialise_data}
 use aiken/collection/dict.{Dict, foldl, get, has_key, size}
 use aiken/collection/list
 use aiken/crypto.{ScriptHash}
@@ -12,50 +11,56 @@ use cardano/assets.{
 use cardano/transaction.{
   InlineDatum, Input, NoDatum, Output, OutputReference, Transaction, find_input,
 }
-use constants.{prefix_222}
+use constants.{global_cfg_token, prefix_222}
 use types.{
   ClassifiedInputs, ClassifiedOutputs, ClassifiedVaultInputs, SettingsDatum,
   VaultDatum,
 }
-use utils.{find_script_input, find_script_output}
+use utils.{find_script_output, input_output_match}
 
-pub fn input_output_match(
-  input: Input,
-  input_datum: Option<Data>,
-  output: Output,
-) -> Bool {
-  let values_match = match(input.output.value, output.value, ==)
-  let orig_datum =
-    when input_datum is {
-      Some(data) -> data
-      None -> {
-        let datum_data: Data = input.output.datum
-        datum_data
-      }
-    }
-  let output_datum: Data = output.datum
-  let datums_match = serialise_data(orig_datum) == serialise_data(output_datum)
-  and {
-    values_match?,
-    datums_match?,
-  }
+// ## Common
+
+/// Get the global settings from the given list of inputs (utxos), the index of the settings UTXO, 
+/// and the policy ID + token name of the settings beacon token.
+pub fn get_cfg(
+  inputs: List<Input>,
+  cfg_idx: Int,
+  policy_id: ScriptHash,
+) -> SettingsDatum {
+  expect Some(cfg_input) = list.at(inputs, cfg_idx)
+  expect quantity_of(cfg_input.output.value, policy_id, global_cfg_token) == 1
+  get_global_settings_from_input(cfg_input)
 }
 
-pub fn get_settings(
-  inputs: List<Input>,
-  settings_policy: ScriptHash,
-  beacon_asset_name: AssetName,
-) -> SettingsDatum {
-  expect Some(settings_input) = find_script_input(inputs, settings_policy)
-  expect
-    1 == quantity_of(
-      settings_input.output.value,
-      settings_policy,
-      beacon_asset_name,
-    )
-  expect InlineDatum(settings_datum) = settings_input.output.datum
-  expect settings: SettingsDatum = settings_datum
+/// Get the global settings from the datum of the given settings UTXO.
+pub fn get_global_settings_from_input(cfg_input: Input) -> SettingsDatum {
+  expect InlineDatum(inline_datum) = cfg_input.output.datum
+  expect settings: SettingsDatum = inline_datum
   settings
+}
+
+// ## Settings
+
+/// Check the given input against the given output if the assets are returned to the same address.
+/// Only the tokens are checked for equality. The lovelace amount in the output is allowed to be greater or less than
+/// in the input since only the minAda is expected here and in this case, it depends on the size of the datum.
+pub fn is_cfg_utxo_returned(input: Input, output: Output) -> Bool {
+  let values_match =
+    match(
+      input.output.value,
+      output.value,
+      fn(input_ada, output_ada) {
+        or {
+          input_ada >= output_ada,
+          input_ada <= output_ada,
+        }
+      },
+    )
+  let is_returned = input.output.address == output.address
+  and {
+    values_match,
+    is_returned,
+  }
 }
 
 /// Checks that the utxo from the `protocol` contract is returned

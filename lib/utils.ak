@@ -1,7 +1,9 @@
+use aiken/builtin.{serialise_data}
 use aiken/collection/list
 use aiken/crypto.{ScriptHash}
 use aiken/primitive/string
 use cardano/address.{Address, Script, VerificationKey}
+use cardano/assets.{match}
 use cardano/transaction.{Input, Output}
 use types.{SignerHash}
 
@@ -55,4 +57,26 @@ pub fn find_address_output(
   address: Address,
 ) -> Option<Output> {
   list.find(outputs, fn(output) { output.address == address })
+}
+
+pub fn input_output_match(
+  input: Input,
+  input_datum: Option<Data>,
+  output: Output,
+) -> Bool {
+  let values_match = match(input.output.value, output.value, ==)
+  let orig_datum =
+    when input_datum is {
+      Some(data) -> data
+      None -> {
+        let datum_data: Data = input.output.datum
+        datum_data
+      }
+    }
+  let output_datum: Data = output.datum
+  let datums_match = serialise_data(orig_datum) == serialise_data(output_datum)
+  and {
+    values_match?,
+    datums_match?,
+  }
 }

@@ -6,18 +6,8 @@ use cardano/transaction.{Input, Output}
 pub type SignerHash =
   Hash<Blake2b_224, ByteArray>
 
-pub type UnifiedRedeemer {
-  MintBeaconToken
-  BurnBeaconToken
-  ReadSettings
-  UpdateSettings
-  LiveShuffle
-  ReShuffle
-  CancelShuffle
-  Administer
-}
-
 pub type SettingsDatum {
+  admin: VerificationKeyHash,
   refscripts: ScriptHash,
   reftokens: ScriptHash,
   vault: ScriptHash,
@@ -31,13 +21,11 @@ pub type VaultDatum {
 }
 
 pub type VaultParams {
-  admin: VerificationKeyHash,
   settings_policy: ScriptHash,
   beacon_asset_name: AssetName,
 }
 
 pub type ProtocolParams {
-  admin: VerificationKeyHash,
   settings_policy: ScriptHash,
   beacon_asset_name: AssetName,
 }
@@ -60,4 +48,28 @@ pub type ClassifiedOutputs {
   settings: List<Output>,
   user: List<Output>,
   other: List<Output>,
+}
+
+pub type UnifiedRedeemer {
+  MintSettingsBeacon { init_utxo_idx: Int }
+  BurnSettingsBeacon { gcfg_utxo_idx: Int }
+  UpdateSettings { input_idx: Int, output_idx: Int }
+  LiveShuffle {
+    /// Indeces of the protocol contract utxos (input and output)
+    protocol_idxs: (Int, Int),
+    /// Index of the settings *reference* input
+    settings_idx: Int,
+  }
+  ReShuffle {
+    /// Indeces of the protocol contract utxos (input and output)
+    protocol_idxs: (Int, Int),
+    /// Index of the settings *reference* input
+    settings_idx: Int,
+  }
+
+  CancelShuffle
+
+  Administer
+
+  SpendBadUtxo { bad_utxo_idx: Int, gcfg_utxo_idx: Int }
 }
