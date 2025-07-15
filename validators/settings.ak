@@ -96,18 +96,6 @@ validator settings(init_output_ref: OutputReference) {
     }
   }
 
-  withdraw(redeemer: UnifiedRedeemer, own_cred: Credential, tx: Transaction) {
-    when redeemer is {
-      SpendBadUtxo { gcfg_utxo_idx, .. } -> {
-        expect Script(cfg_policy) = own_cred
-        let cfg = get_cfg(tx.reference_inputs, gcfg_utxo_idx, cfg_policy)
-        let signed_by_admin = is_signed_by(tx.extra_signatories, cfg.admin)
-        signed_by_admin?
-      }
-      _ -> fail @"Invalid redeemer for settings::withdraw"
-    }
-  }
-
   publish(redeemer: UnifiedRedeemer, cert: Certificate, tx: Transaction) {
     when redeemer is {
       // Not using input index here because at this time, offchain tx builder (lucid-evo) doesn't support

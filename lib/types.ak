@@ -1,6 +1,6 @@
 use aiken/crypto.{Blake2b_224, Hash, ScriptHash, VerificationKeyHash}
 use cardano/address.{Address}
-use cardano/assets.{AssetName, PolicyId}
+use cardano/assets.{PolicyId}
 use cardano/transaction.{Input, Output}
 
 pub type SignerHash =
@@ -20,14 +20,8 @@ pub type VaultDatum {
   owner: Address,
 }
 
-pub type VaultParams {
-  settings_policy: ScriptHash,
-  beacon_asset_name: AssetName,
-}
-
 pub type ProtocolParams {
-  settings_policy: ScriptHash,
-  beacon_asset_name: AssetName,
+  cfg_policy: ScriptHash,
 }
 
 pub type ClassifiedVaultInputs {
@@ -57,6 +51,12 @@ pub type UnifiedRedeemer {
   LiveShuffle {
     /// Indeces of the protocol contract utxos (input and output)
     protocol_idxs: (Int, Int),
+    /// Indeces of the vault contract utxos (input and output)
+    vault_idxs: (Int, Int),
+    /// Index of the output to the user
+    user_idx: Int,
+    /// Index of the CIP68 reftoken output
+    ref_idx: Int,
     /// Index of the settings *reference* input
     settings_idx: Int,
   }
@@ -70,6 +70,8 @@ pub type UnifiedRedeemer {
   CancelShuffle
 
   Administer
+
+  RetireProtocol
 
   SpendBadUtxo { bad_utxo_idx: Int, gcfg_utxo_idx: Int }
 }

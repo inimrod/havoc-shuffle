@@ -1,51 +1,49 @@
 //// This holds the assets submitted by users
 
+use aiken/collection/list
 use aiken/collection/pairs
-use cardano/address.{Credential}
+use cardano/address.{Credential, Script}
 use cardano/script_context.{ScriptContext}
 use cardano/transaction.{OutputReference, Transaction, find_input}
-use helpers.{get_settings}
-use types.{SettingsDatum, UnifiedRedeemer, VaultDatum, VaultParams}
+use helpers.{get_cfg}
+use types.{
+  LiveShuffle, ProtocolParams, ReShuffle, SettingsDatum, UnifiedRedeemer,
+  VaultDatum,
+}
 use utils.{find_script_input, is_signed_by}
 
-validator vault(params: VaultParams) {
+validator vault(params: ProtocolParams) {
   spend(
-    _datum: Option<VaultDatum>,
-    _redeemer: UnifiedRedeemer,
-    output_ref: OutputReference,
+    _datum: Option<Data>,
+    redeemer: UnifiedRedeemer,
+    out_ref: OutputReference,
     this_tx: Transaction,
   ) {
-    // Pass main validation to the "withdraw" purpose of this validator
-    // to reduce execution cost when spending multiple UTXOs.
-    expect Some(input_from_self) = find_input(this_tx.inputs, output_ref)
-    let withdrawals = this_tx.withdrawals
-    let this_acct = input_from_self.output.address.payment_credential
-    pairs.has_key(withdrawals, this_acct)?
-  }
-
-  withdraw(
-    _redeemer: UnifiedRedeemer,
-    _account: Credential,
-    this_tx: Transaction,
-  ) {
-    let settings =
-      get_settings(
-        this_tx.inputs,
-        params.settings_policy,
-        params.beacon_asset_name,
-      )
-    let protocol_input_maybe =
-      find_script_input(this_tx.inputs, settings.protocol)
-    let protocol_input_present =
-      when protocol_input_maybe is {
-        Some(_) -> True
-        None -> False
+    when redeemer is {
+      LiveShuffle { protocol_idxs, settings_idx } |
+      ReShuffle { protocol_idxs, settings_idx } -> {
+        let cfg =
+          get_cfg(
+            this_tx.reference_inputs,
+            settings_idx,
+            params.settings_policy,
+          )
+        expect Some(protocol_input) = list.at(this_tx.inputs, protocol_idxs.1st)
+        let has_protocol_input =
+          Script(cfg.protocol) == protocol_input.output.address.payment_credential
+        has_protocol_input?
       }
-    protocol_input_present?
+      SpendBadUtxo { bad_utxo_idx, gcfg_utxo_idx } -> {
+        expect Some(input) = list.at(tx.inputs, bad_utxo_idx)
+        expect out_ref == input.output_reference
+        let cfg = get_cfg(tx.reference_inputs, gcfg_utxo_idx, params.cfg_policy)
+        is_signed_by(tx.extra_signatories, cfg.admin)
+      }
+      _ -> fail @"Invalid redeemer for vault::spend"
+    }
   }
 
-  else(context: ScriptContext) {
-    let this_tx: Transaction = context.transaction
-    is_signed_by(this_tx.extra_signatories, params.admin)
+  else(_) {
+    fail @"Unsupported tx purpose for vault validator"
   }
 }

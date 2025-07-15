@@ -63,6 +63,8 @@ pub fn is_cfg_utxo_returned(input: Input, output: Output) -> Bool {
   }
 }
 
+// ## Protocol
+
 /// Checks that the utxo from the `protocol` contract is returned
 pub fn validate_protocol_output(
   tx: Transaction,
@@ -77,10 +79,12 @@ pub fn validate_protocol_output(
 
 pub fn validate_liveshuffle_user_output(
   minted: Value,
+  owner: Address,
   user_output: Output,
-  settings: SettingsDatum,
+  cfg: SettingsDatum,
 ) -> Bool {
-  let s2_policy_id = settings.s2_policy_id
+  let address_valid = user_output.address == owner
+  let s2_policy_id = cfg.s2_policy_id
   let minted_dict = tokens(minted, s2_policy_id)
   let minted_user_tokens =
     foldl(
@@ -99,17 +103,35 @@ pub fn validate_liveshuffle_user_output(
     )
   trace @"minted_user_tokens": minted_user_tokens
   trace @"user_output.value": user_output.value
-  match(minted_user_tokens, user_output.value, <=)
+  let tokens_match = match(minted_user_tokens, user_output.value, <=)
+  and {
+    address_valid?,
+    tokens_match?,
+  }
 }
 
-pub fn validate_liveshuffle_return_utxo(input: Input, output: Output) -> Bool {
+/// Check that the live shuffle request utxo value is returned to the vault contract
+/// but this time, contains no datum anymore.
+pub fn validate_liveshuffle_return_utxo(
+  input: Input,
+  output: Output,
+  cfg: SettingsDatum,
+) -> Bool {
+  let address_match = and {
+      Script(cfg.vault) == input.output.address.payment_credential,
+      input.output.address == output.address,
+    }
   let valid_values = match(input.output.value, output.value, >=)
   let output_has_no_datum =
     when output.datum is {
       NoDatum -> True
       _ -> False
     }
-  valid_values? && output_has_no_datum?
+  and {
+    address_match?,
+    valid_values?,
+    output_has_no_datum?,
+  }
 }
 
 /// Classifies inputs according to their source. i.e. from the `vault` and `protocol` contracts
