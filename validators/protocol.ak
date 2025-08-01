@@ -9,10 +9,10 @@ use cardano/script_context.{ScriptContext}
 use cardano/transaction.{InlineDatum, OutputReference, Transaction}
 use constants.{global_cfg_token as cfg_token}
 use helpers.{
-  classify_inputs, classify_outputs, get_cfg, total_inputs_value,
-  total_outputs_value, validate_cancel_shuffle_user_output,
-  validate_liveshuffle_return_utxo, validate_liveshuffle_user_output,
-  validate_protocol_output, validate_reshuffle_return_utxo,
+  classify_inputs, classify_outputs, get_cfg, total_pool_inputs_value,
+  validate_cancel_shuffle_user_output, validate_liveshuffle_return_utxo,
+  validate_liveshuffle_user_output, validate_protocol_output,
+  validate_protocol_utxos, validate_reshuffle_return_utxo,
 }
 use types.{
   CancelShuffle, LiveShuffle, ProtocolParams, ReShuffle, RetireProtocol,
@@ -30,11 +30,8 @@ validator protocol(params: ProtocolParams) {
     when redeemer is {
       LiveShuffle { protocol_idxs, vault_idxs, user_idx, ref_idx, settings_idx } -> {
         // protocol input and output validation
-        expect Some(protocol_input) = list.at(tx.inputs, protocol_idxs.1st)
-        expect Some(protocol_output) = list.at(tx.outputs, protocol_idxs.2nd)
-        expect out_ref == protocol_input.output_reference
-        let protocol_output_valid =
-          input_output_match(protocol_input, None, protocol_output)
+        let protocol_utxos_valid =
+          validate_protocol_utxos(tx.inputs, tx.outputs, out_ref, protocol_idxs)
 
         // get config settings
         let cfg = get_cfg(tx.reference_inputs, settings_idx, params.cfg_policy)
@@ -78,7 +75,7 @@ validator protocol(params: ProtocolParams) {
         let outputs_count_valid = 4 == list.length(tx.outputs)
 
         and {
-          protocol_output_valid?,
+          protocol_utxos_valid?,
           vault_output_valid?,
           valid_shuffle_qty?,
           valid_mint_qty?,
@@ -88,54 +85,48 @@ validator protocol(params: ProtocolParams) {
           outputs_count_valid?,
         }
       }
-      ReShuffle -> {
-        let settings =
-          get_settings(
-            tx.inputs,
-            params.settings_policy,
-            params.beacon_asset_name,
-          )
-        let protocol_output_valid =
-          validate_protocol_output(tx, out_ref, settings)
+      ReShuffle {
+        protocol_idxs,
+        settings_idx,
+        request_idx,
+        pool_idxs,
+        pool_oidx,
+        user_idx,
+      } -> {
+        // protocol input and output validation
+        let protocol_utxos_valid =
+          validate_protocol_utxos(tx.inputs, tx.outputs, out_ref, protocol_idxs)
+        // get config settings
+        let cfg = get_cfg(tx.reference_inputs, settings_idx, params.cfg_policy)
+
+        // make sure there are no minted tokens
         let no_tokens_minted = is_zero(tx.mint)
-        let classified_inputs = classify_inputs(tx.inputs, settings)
-        let only_one_request_input =
-          1 == list.length(classified_inputs.vault.request)
-        let min_1_pool_input = 1 <= list.length(classified_inputs.vault.pool)
-        let pool_inputs_value = total_inputs_value(classified_inputs.vault.pool)
-        expect Some(request_input) = list.head(classified_inputs.vault.request)
+        let pool_inputs_value =
+          total_pool_inputs_value(tx.inputs, pool_idxs, cfg)
+        expect Some(request_input) = list.at(tx.inputs, request_idx)
         expect InlineDatum(request_datum) = request_input.output.datum
         expect request_datum: VaultDatum = request_datum
         let s2_tokens_in_request =
-          tokens(request_input.output.value, settings.s2_policy_id)
+          tokens(request_input.output.value, cfg.s2_policy_id)
         let s2_qty_in_request = size(s2_tokens_in_request)
 
-        let classified_outputs =
-          classify_outputs(
-            tx.outputs,
-            settings,
-            params.settings_policy,
-            request_datum.owner,
-          )
-        let user_output_value = total_outputs_value(classified_outputs.user)
+        expect Some(user_output) = list.at(tx.outputs, user_idx)
         let s2_qty_in_user_output =
-          tokens(user_output_value, settings.s2_policy_id) |> size()
+          tokens(user_output.value, cfg.s2_policy_id) |> size()
         let valid_s2_qty_in_user_output =
           s2_qty_in_request == s2_qty_in_user_output
-        expect Some(vault_output) = list.head(classified_outputs.vault)
+        expect Some(vault_output) = list.at(tx.outputs, pool_oidx)
         let valid_reshuffle_return_utxo =
           validate_reshuffle_return_utxo(
             vault_output,
             pool_inputs_value,
             keys(s2_tokens_in_request),
-            settings.s2_policy_id,
+            cfg.s2_policy_id,
           )
 
         and {
-          protocol_output_valid?,
+          protocol_utxos_valid?,
           no_tokens_minted?,
-          only_one_request_input?,
-          min_1_pool_input?,
           valid_s2_qty_in_user_output?,
           valid_reshuffle_return_utxo?,
         }

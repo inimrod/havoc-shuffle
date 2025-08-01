@@ -65,6 +65,14 @@ pub type UnifiedRedeemer {
     protocol_idxs: (Int, Int),
     /// Index of the settings *reference* input
     settings_idx: Int,
+    /// Index of user's shuffle request utxo
+    request_idx: Int,
+    /// Indeces of the input utxos from the vault to be used for the shuffle
+    pool_idxs: List<Int>,
+    /// Index of the output to the vault contract
+    pool_oidx: Int,
+    /// Index of the output to the user
+    user_idx: Int,
   }
 
   CancelShuffle

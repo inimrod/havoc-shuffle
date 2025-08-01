@@ -65,16 +65,18 @@ pub fn is_cfg_utxo_returned(input: Input, output: Output) -> Bool {
 
 // ## Protocol
 
-/// Checks that the utxo from the `protocol` contract is returned
-pub fn validate_protocol_output(
-  tx: Transaction,
-  output_ref: OutputReference,
-  settings: SettingsDatum,
+/// Checks that the protocol input utxo is valid and the output is returned to the `protocol` contract
+pub fn validate_protocol_utxos(
+  inputs: List<Input>,
+  outputs: List<Output>,
+  out_ref: OutputReference,
+  protocol_idxs: (Int, Int),
 ) -> Bool {
-  expect Some(input_from_self) = find_input(tx.inputs, output_ref)
-  expect Some(output_to_self) =
-    find_script_output(tx.outputs, settings.protocol)
-  input_output_match(input_from_self, None, output_to_self)
+  expect Some(input) = list.at(inputs, protocol_idxs.1st)
+  expect Some(output) = list.at(outputs, protocol_idxs.2nd)
+  expect out_ref == input.output_reference
+  let output_valid = input_output_match(input, None, output)
+  output_valid?
 }
 
 pub fn validate_liveshuffle_user_output(
@@ -260,18 +262,29 @@ pub fn classify_outputs(
   )
 }
 
-pub fn total_outputs_value(outputs: List<Output>) -> Value {
-  list.foldl(outputs, zero, fn(output, accum) { merge(accum, output.value) })
-}
-
-pub fn total_inputs_value(inputs: List<Input>) -> Value {
+/// Returns the total value of the inputs from the vault contract that will be used to
+/// fulfill user's shuffle request.
+pub fn total_pool_inputs_value(
+  inputs: List<Input>,
+  pool_idxs: List<Int>,
+  cfg: SettingsDatum,
+) -> Value {
   list.foldl(
-    inputs,
+    pool_idxs,
     zero,
-    fn(input, accum) { merge(accum, input.output.value) },
+    fn(idx, accum) {
+      expect Some(input) = list.at(inputs, idx)
+      expect Script(cfg.vault) == input.output.address.payment_credential
+      merge(accum, input.output.value)
+    },
   )
 }
 
+/// Check that the output going back to the vault contract contains:
+/// 1. the same amount of ADA as in the pool inputs
+/// 1. the same number of S2 tokens as in the pool inputs
+/// 1. all the S2 tokens in the request input
+/// 1. no datum
 pub fn validate_reshuffle_return_utxo(
   vault_output: Output,
   pool_inputs_value: Value,
@@ -280,7 +293,7 @@ pub fn validate_reshuffle_return_utxo(
 ) -> Bool {
   let ada_in_input = lovelace_of(pool_inputs_value)
   let ada_in_output = lovelace_of(vault_output.value)
-  let input_ada_is_retained = ada_in_input == ada_in_output
+  let input_ada_is_retained = ada_in_output >= ada_in_input
 
   let s2_qty_in_inputs = tokens(pool_inputs_value, s2_policy_id) |> size()
   let s2_tokens_in_output = tokens(vault_output.value, s2_policy_id)
