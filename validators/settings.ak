@@ -3,13 +3,12 @@
 //// the upgradeable validator.
 
 use aiken/collection/list
-use aiken/collection/pairs
-use cardano/address.{Credential, Script}
+use cardano/address.{Script}
 use cardano/assets.{PolicyId, quantity_of}
 use cardano/certificate.{Certificate, RegisterCredential, UnregisterCredential}
 use cardano/transaction.{OutputReference, Transaction}
 use constants.{global_cfg_token as cfg_token}
-use helpers.{get_cfg, get_global_settings_from_input, is_cfg_utxo_returned}
+use helpers.{get_global_settings_from_input, is_cfg_utxo_returned}
 use types.{
   BurnSettingsBeacon, MintSettingsBeacon, SettingsDatum, SpendBadUtxo,
   UnifiedRedeemer, UpdateSettings,
@@ -83,6 +82,7 @@ validator settings(init_output_ref: OutputReference) {
       SpendBadUtxo { bad_utxo_idx, .. } -> {
         expect Some(input) = list.at(tx.inputs, bad_utxo_idx)
         expect out_ref == input.output_reference
+        expect Script(this_policy) = input.output.address.payment_credential
         let no_global_cfg_token =
           0 == quantity_of(input.output.value, this_policy, cfg_token)
         no_global_cfg_token?
