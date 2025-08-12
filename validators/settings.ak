@@ -83,14 +83,9 @@ validator settings(init_output_ref: OutputReference) {
       SpendBadUtxo { bad_utxo_idx, .. } -> {
         expect Some(input) = list.at(tx.inputs, bad_utxo_idx)
         expect out_ref == input.output_reference
-        expect Script(this_policy) = input.output.address.payment_credential
-        let in_withdrawals = pairs.has_key(tx.withdrawals, Script(this_policy))
         let no_global_cfg_token =
           0 == quantity_of(input.output.value, this_policy, cfg_token)
-        and {
-          in_withdrawals?,
-          no_global_cfg_token?,
-        }
+        no_global_cfg_token?
       }
       _ -> fail @"Invalid redeemer for settings::spend"
     }
