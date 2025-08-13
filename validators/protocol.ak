@@ -9,9 +9,9 @@ use cardano/script_context.{ScriptContext}
 use cardano/transaction.{InlineDatum, OutputReference, Transaction}
 use constants.{global_cfg_token as cfg_token}
 use helpers.{
-  classify_inputs, classify_outputs, get_cfg, total_pool_inputs_value,
-  validate_cancel_shuffle_user_output, validate_liveshuffle_return_utxo,
-  validate_liveshuffle_user_output, validate_protocol_output,
+  classify_inputs, classify_outputs, confirm_bad_vault_utxos, get_cfg,
+  total_pool_inputs_value, validate_cancel_shuffle_user_output,
+  validate_liveshuffle_return_utxo, validate_liveshuffle_user_output,
   validate_protocol_utxos, validate_reshuffle_return_utxo,
 }
 use types.{
@@ -98,11 +98,12 @@ validator protocol(params: ProtocolParams) {
           validate_protocol_utxos(tx.inputs, tx.outputs, out_ref, protocol_idxs)
         // get config settings
         let cfg = get_cfg(tx.reference_inputs, settings_idx, params.cfg_policy)
-
         // make sure there are no minted tokens
         let no_tokens_minted = is_zero(tx.mint)
+        // get total Value of all vault inputs
         let pool_inputs_value =
           total_pool_inputs_value(tx.inputs, pool_idxs, cfg)
+        // parse user request input
         expect Some(request_input) = list.at(tx.inputs, request_idx)
         expect InlineDatum(request_datum) = request_input.output.datum
         expect request_datum: VaultDatum = request_datum
@@ -110,6 +111,7 @@ validator protocol(params: ProtocolParams) {
           tokens(request_input.output.value, cfg.s2_policy_id)
         let s2_qty_in_request = size(s2_tokens_in_request)
 
+        // validate user and vault outputs
         expect Some(user_output) = list.at(tx.outputs, user_idx)
         let s2_qty_in_user_output =
           tokens(user_output.value, cfg.s2_policy_id) |> size()
@@ -131,16 +133,15 @@ validator protocol(params: ProtocolParams) {
           valid_reshuffle_return_utxo?,
         }
       }
-      CancelShuffle -> {
-        let settings =
-          get_settings(
-            tx.inputs,
-            params.settings_policy,
-            params.beacon_asset_name,
-          )
-        let protocol_output_valid =
-          validate_protocol_output(tx, out_ref, settings)
-        let classified_inputs = classify_inputs(tx.inputs, settings)
+      CancelShuffle { protocol_idxs, settings_idx, request_idx, user_idx } -> {
+        // protocol input and output validation
+        let protocol_utxos_valid =
+          validate_protocol_utxos(tx.inputs, tx.outputs, out_ref, protocol_idxs)
+
+        // get config settings
+        let cfg = get_cfg(tx.reference_inputs, settings_idx, params.cfg_policy)
+
+        let classified_inputs = classify_inputs(tx.inputs, cfg)
         let only_one_vault_input = and {
             1 == list.length(classified_inputs.vault.request),
             0 == list.length(classified_inputs.vault.pool),
@@ -150,19 +151,18 @@ validator protocol(params: ProtocolParams) {
         expect request_datum: VaultDatum = request_datum
 
         let s2_tokens_in_request =
-          tokens(request_input.output.value, settings.s2_policy_id)
+          tokens(request_input.output.value, cfg.s2_policy_id)
             |> to_pairs()
 
         let classified_outputs =
           classify_outputs(
             tx.outputs,
-            settings,
+            cfg,
             params.settings_policy,
             request_datum.owner,
           )
         let user_output_value = total_outputs_value(classified_outputs.user)
-        let s2_tokens_in_output =
-          tokens(user_output_value, settings.s2_policy_id)
+        let s2_tokens_in_output = tokens(user_output_value, cfg.s2_policy_id)
         let user_output_valid =
           validate_cancel_shuffle_user_output(
             s2_tokens_in_request,
@@ -177,18 +177,27 @@ validator protocol(params: ProtocolParams) {
         let signed_by_admin = is_signed_by(tx.extra_signatories, params.admin)
         let validly_signed = signed_by_owner || signed_by_admin
         and {
-          protocol_output_valid?,
-          only_one_vault_input?,
+          protocol_utxos_valid?,
           user_output_valid?,
           validly_signed?,
         }
       }
-      SpendBadUtxo { bad_utxo_idx, .. } -> {
-        expect Some(input) = list.at(tx.inputs, bad_utxo_idx)
-        expect out_ref == input.output_reference
-        expect Script(own_hash) = input.output.address.payment_credential
-        let in_withdrawals = pairs.has_key(tx.withdrawals, Script(own_hash))
-        in_withdrawals?
+      SpendBadUtxo { protocol_idxs, settings_idx, .. } -> {
+        // protocol input and output validation
+        let protocol_utxos_valid =
+          validate_protocol_utxos(tx.inputs, tx.outputs, out_ref, protocol_idxs)
+
+        // get config settings
+        let cfg = get_cfg(tx.reference_inputs, settings_idx, params.cfg_policy)
+
+        let classified_inputs = classify_inputs(tx.inputs, cfg)
+        let all_vault_inputs_bad =
+          confirm_bad_vault_utxos(classified_inputs, cfg)
+        let signed_by_admin = is_signed_by(tx.extra_signatories, cfg.admin)
+        and {
+          all_vault_inputs_bad?,
+          signed_by_admin?,
+        }
       }
       _ -> fail @"Invalid redeemer for protocol::spend"
     }

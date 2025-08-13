@@ -8,15 +8,13 @@ use cardano/assets.{
   AssetName, PolicyId, Value, from_asset, lovelace_of, match, merge, quantity_of,
   tokens, zero,
 }
-use cardano/transaction.{
-  InlineDatum, Input, NoDatum, Output, OutputReference, Transaction, find_input,
-}
+use cardano/transaction.{InlineDatum, Input, NoDatum, Output, OutputReference}
 use constants.{global_cfg_token, prefix_222}
 use types.{
   ClassifiedInputs, ClassifiedOutputs, ClassifiedVaultInputs, SettingsDatum,
   VaultDatum,
 }
-use utils.{find_script_output, input_output_match}
+use utils.{input_output_match}
 
 // ## Common
 
@@ -61,6 +59,33 @@ pub fn is_cfg_utxo_returned(input: Input, output: Output) -> Bool {
     values_match,
     is_returned,
   }
+}
+
+// ## Vault
+
+/// Checks that the given input (identified by `out_ref`) is the user's shuffle request UTXO specified in the redeemer.
+pub fn is_request_utxo(
+  out_ref: OutputReference,
+  inputs: List<Input>,
+  request_idx: Int,
+) -> Bool {
+  expect Some(req_input) = list.at(inputs, request_idx)
+  out_ref == req_input.output_reference
+}
+
+/// Checks that the given input (identified by `out_ref`) is one of the UTXOs listed as `pool` UTXOs in the redeemer.
+pub fn is_pool_utxo(
+  out_ref: OutputReference,
+  inputs: List<Input>,
+  pool_idxs: List<Int>,
+) -> Bool {
+  list.any(
+    pool_idxs,
+    fn(idx) {
+      expect Some(input) = list.at(inputs, idx)
+      out_ref == input.output_reference
+    },
+  )
 }
 
 // ## Protocol
@@ -336,6 +361,27 @@ pub fn validate_cancel_shuffle_user_output(
       let token_qty_in_output =
         get(s2_tokens_in_output, token_name) |> or_else(0)
       token_qty == token_qty_in_output
+    },
+  )
+}
+
+/// Check that all input utxos from the vault contract are actually bad ones. Meaning they either
+/// have no valid S2 tokens or have an invalid datum.
+pub fn confirm_bad_vault_utxos(
+  classified_inputs: ClassifiedInputs,
+  settings: SettingsDatum,
+) -> Bool {
+  let ClassifiedVaultInputs { request: req_inputs, pool: pool_inputs } =
+    classified_inputs.vault
+
+  let all_vault_inputs = list.concat(req_inputs, pool_inputs)
+
+  // only checking here for number of s2 tokens contained by each input. the datum structure
+  // is already checked when classifying these inputs.
+  list.all(
+    all_vault_inputs,
+    fn(input) {
+      0 == ( tokens(input.output.value, settings.s2_policy_id) |> size() )
     },
   )
 }

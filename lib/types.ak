@@ -75,11 +75,28 @@ pub type UnifiedRedeemer {
     user_idx: Int,
   }
 
-  CancelShuffle
-
-  Administer
+  CancelShuffle {
+    /// Indeces of the protocol contract utxos (input and output)
+    protocol_idxs: (Int, Int),
+    /// Index of the settings *reference* input
+    settings_idx: Int,
+    /// Index of user's shuffle request utxo
+    request_idx: Int,
+    /// Index of the output to the user
+    user_idx: Int,
+  }
 
   RetireProtocol
 
-  SpendBadUtxo { bad_utxo_idx: Int, gcfg_utxo_idx: Int }
+  /// used for cleaning up bad utxos in settings and vault contracts
+  SpendBadUtxo {
+    /// Indeces of the protocol contract utxos (input and output).
+    /// This may be provided with placeholder values if cleaning up bad utxos in settings contract.
+    protocol_idxs: (Int, Int),
+    /// Index of the bad utxo input
+    /// This may be provided with placeholder value only, if cleaning up bad utxos in vault contract.
+    bad_utxo_idx: Int,
+    /// Index of the settings *reference* input
+    settings_idx: Int,
+  }
 }

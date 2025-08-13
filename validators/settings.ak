@@ -8,7 +8,7 @@ use cardano/assets.{PolicyId, quantity_of}
 use cardano/certificate.{Certificate, RegisterCredential, UnregisterCredential}
 use cardano/transaction.{OutputReference, Transaction}
 use constants.{global_cfg_token as cfg_token}
-use helpers.{get_global_settings_from_input, is_cfg_utxo_returned}
+use helpers.{get_cfg, get_global_settings_from_input, is_cfg_utxo_returned}
 use types.{
   BurnSettingsBeacon, MintSettingsBeacon, SettingsDatum, SpendBadUtxo,
   UnifiedRedeemer, UpdateSettings,
@@ -79,13 +79,19 @@ validator settings(init_output_ref: OutputReference) {
           -1 == quantity_of(tx.mint, this_policy, cfg_token)
         beacon_token_burned?
       }
-      SpendBadUtxo { bad_utxo_idx, .. } -> {
+      SpendBadUtxo { bad_utxo_idx, settings_idx, .. } -> {
         expect Some(input) = list.at(tx.inputs, bad_utxo_idx)
         expect out_ref == input.output_reference
         expect Script(this_policy) = input.output.address.payment_credential
         let no_global_cfg_token =
           0 == quantity_of(input.output.value, this_policy, cfg_token)
-        no_global_cfg_token?
+        let cfg = get_cfg(tx.reference_inputs, settings_idx, this_policy)
+        let signed_by_admin = is_signed_by(tx.extra_signatories, cfg.admin)
+
+        and {
+          no_global_cfg_token?,
+          signed_by_admin?,
+        }
       }
       _ -> fail @"Invalid redeemer for settings::spend"
     }
