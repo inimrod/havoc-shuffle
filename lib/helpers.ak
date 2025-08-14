@@ -10,10 +10,7 @@ use cardano/assets.{
 }
 use cardano/transaction.{InlineDatum, Input, NoDatum, Output, OutputReference}
 use constants.{global_cfg_token, prefix_222}
-use types.{
-  ClassifiedInputs, ClassifiedOutputs, ClassifiedVaultInputs, SettingsDatum,
-  VaultDatum,
-}
+use types.{ClassifiedInputs, ClassifiedVaultInputs, SettingsDatum, VaultDatum}
 use utils.{input_output_match}
 
 // ## Common
@@ -161,6 +158,16 @@ pub fn validate_liveshuffle_return_utxo(
   }
 }
 
+/// Count the number of inputs from the vault contract in the given list of inputs.
+pub fn count_vault_inputs(inputs: List<Input>, settings: SettingsDatum) -> Int {
+  list.count(
+    inputs,
+    fn(input) {
+      Script(settings.vault) == input.output.address.payment_credential
+    },
+  )
+}
+
 /// Classifies inputs according to their source. i.e. from the `vault` and `protocol` contracts
 pub fn classify_inputs(
   inputs: List<Input>,
@@ -213,75 +220,6 @@ pub fn classify_inputs(
             accum
           }
         _ -> accum
-      }
-    },
-  )
-}
-
-/// Classifies outputs according to destination.
-pub fn classify_outputs(
-  outputs: List<Output>,
-  settings: SettingsDatum,
-  settings_hash: ScriptHash,
-  user_address: Address,
-) -> ClassifiedOutputs {
-  let SettingsDatum { refscripts, reftokens, vault, protocol, .. } = settings
-  list.foldl(
-    outputs,
-    ClassifiedOutputs {
-      refscripts: [],
-      reftokens: [],
-      vault: [],
-      protocol: [],
-      settings: [],
-      user: [],
-      other: [],
-    },
-    fn(output, accum) {
-      if output.address == user_address {
-        trace @"user output:"
-        trace @"output.address": output.address
-        trace @"user_address": user_address
-        trace @"output": output
-        trace @"-------"
-        ClassifiedOutputs { ..accum, user: list.push(accum.user, output) }
-      } else {
-        when output.address.payment_credential is {
-          Script(script_hash) ->
-            if script_hash == refscripts {
-              ClassifiedOutputs {
-                ..accum,
-                refscripts: list.push(accum.refscripts, output),
-              }
-            } else if script_hash == reftokens {
-              ClassifiedOutputs {
-                ..accum,
-                reftokens: list.push(accum.reftokens, output),
-              }
-            } else if script_hash == vault {
-              ClassifiedOutputs {
-                ..accum,
-                vault: list.push(accum.vault, output),
-              }
-            } else if script_hash == protocol {
-              ClassifiedOutputs {
-                ..accum,
-                protocol: list.push(accum.protocol, output),
-              }
-            } else if script_hash == settings_hash {
-              ClassifiedOutputs {
-                ..accum,
-                settings: list.push(accum.settings, output),
-              }
-            } else {
-              ClassifiedOutputs {
-                ..accum,
-                other: list.push(accum.other, output),
-              }
-            }
-          _ ->
-            ClassifiedOutputs { ..accum, other: list.push(accum.other, output) }
-        }
       }
     },
   )
@@ -349,6 +287,8 @@ pub fn validate_reshuffle_return_utxo(
   }
 }
 
+/// Check that the tokens contained in the output for the user, is exactly the same
+/// as the tokens in their request input.
 pub fn validate_cancel_shuffle_user_output(
   s2_tokens_in_request: Pairs<AssetName, Int>,
   s2_tokens_in_output: Dict<AssetName, Int>,
