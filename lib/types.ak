@@ -34,16 +34,6 @@ pub type ClassifiedInputs {
   protocol: List<Input>,
 }
 
-pub type ClassifiedOutputs {
-  refscripts: List<Output>,
-  reftokens: List<Output>,
-  vault: List<Output>,
-  protocol: List<Output>,
-  settings: List<Output>,
-  user: List<Output>,
-  other: List<Output>,
-}
-
 pub type UnifiedRedeemer {
   MintSettingsBeacon { init_utxo_idx: Int }
   BurnSettingsBeacon { gcfg_utxo_idx: Int }

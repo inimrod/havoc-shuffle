@@ -9,14 +9,14 @@ use cardano/script_context.{ScriptContext}
 use cardano/transaction.{InlineDatum, OutputReference, Transaction}
 use constants.{global_cfg_token as cfg_token}
 use helpers.{
-  classify_inputs, classify_outputs, confirm_bad_vault_utxos, get_cfg,
+  classify_inputs, confirm_bad_vault_utxos, count_vault_inputs, get_cfg,
   total_pool_inputs_value, validate_cancel_shuffle_user_output,
   validate_liveshuffle_return_utxo, validate_liveshuffle_user_output,
   validate_protocol_utxos, validate_reshuffle_return_utxo,
 }
 use types.{
-  CancelShuffle, LiveShuffle, ProtocolParams, ReShuffle, RetireProtocol,
-  UnifiedRedeemer, VaultDatum,
+  CancelShuffle, ClassifiedInputs, LiveShuffle, ProtocolParams, ReShuffle,
+  RetireProtocol, SpendBadUtxo, UnifiedRedeemer, VaultDatum,
 }
 use utils.{input_output_match, is_signed_by}
 
@@ -141,43 +141,38 @@ validator protocol(params: ProtocolParams) {
         // get config settings
         let cfg = get_cfg(tx.reference_inputs, settings_idx, params.cfg_policy)
 
-        let classified_inputs = classify_inputs(tx.inputs, cfg)
-        let only_one_vault_input = and {
-            1 == list.length(classified_inputs.vault.request),
-            0 == list.length(classified_inputs.vault.pool),
-          }
-        expect Some(request_input) = list.head(classified_inputs.vault.request)
+        // make sure only 1 vault utxo is spent
+        let only_one_vault_input = 1 == count_vault_inputs(tx.inputs, cfg)
+
+        // parse datum in user request input
+        expect Some(request_input) = list.at(tx.inputs, request_idx)
         expect InlineDatum(request_datum) = request_input.output.datum
         expect request_datum: VaultDatum = request_datum
 
+        // validate user output contents
         let s2_tokens_in_request =
           tokens(request_input.output.value, cfg.s2_policy_id)
             |> to_pairs()
-
-        let classified_outputs =
-          classify_outputs(
-            tx.outputs,
-            cfg,
-            params.settings_policy,
-            request_datum.owner,
-          )
-        let user_output_value = total_outputs_value(classified_outputs.user)
-        let s2_tokens_in_output = tokens(user_output_value, cfg.s2_policy_id)
+        expect Some(user_output) = list.at(tx.outputs, user_idx)
+        let s2_tokens_in_output = tokens(user_output.value, cfg.s2_policy_id)
         let user_output_valid =
           validate_cancel_shuffle_user_output(
             s2_tokens_in_request,
             s2_tokens_in_output,
           )
+
+        // check that the tx is signed either by the owner of the request input, or by admin
         let owner =
           when request_datum.owner.payment_credential is {
             VerificationKey(hash) -> hash
             Script(hash) -> hash
           }
         let signed_by_owner = is_signed_by(tx.extra_signatories, owner)
-        let signed_by_admin = is_signed_by(tx.extra_signatories, params.admin)
+        let signed_by_admin = is_signed_by(tx.extra_signatories, cfg.admin)
         let validly_signed = signed_by_owner || signed_by_admin
         and {
           protocol_utxos_valid?,
+          only_one_vault_input?,
           user_output_valid?,
           validly_signed?,
         }
