@@ -5,7 +5,6 @@
 use aiken/collection/list
 use cardano/address.{Script}
 use cardano/assets.{PolicyId, quantity_of}
-use cardano/certificate.{Certificate, RegisterCredential, UnregisterCredential}
 use cardano/transaction.{OutputReference, Transaction}
 use constants.{global_cfg_token as cfg_token}
 use helpers.{get_cfg, get_global_settings_from_input, is_cfg_utxo_returned}
@@ -94,32 +93,6 @@ validator settings(init_output_ref: OutputReference) {
         }
       }
       _ -> fail @"Invalid redeemer for settings::spend"
-    }
-  }
-
-  publish(redeemer: UnifiedRedeemer, cert: Certificate, tx: Transaction) {
-    when redeemer is {
-      // Not using input index here because at this time, offchain tx builder (lucid-evo) doesn't support
-      // RedeemerBuilder (redeemer indexing) for the `publish` validator purpose
-      BurnSettingsBeacon { .. } ->
-        when cert is {
-          RegisterCredential { credential, .. } |
-          UnregisterCredential { credential, .. } -> {
-            expect Script(own_hash) = credential
-            expect Some(cfg_input) =
-              list.find(
-                tx.inputs,
-                fn(input) {
-                  1 == quantity_of(input.output.value, own_hash, cfg_token)
-                },
-              )
-            let cfg = get_global_settings_from_input(cfg_input)
-            let signed_by_admin = is_signed_by(tx.extra_signatories, cfg.admin)
-            signed_by_admin?
-          }
-          _ -> fail @"Unsupported certificate type for settings::publish"
-        }
-      _ -> fail @"Invalid redeemer for settings::publish"
     }
   }
 
