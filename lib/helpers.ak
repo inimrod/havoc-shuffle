@@ -8,9 +8,11 @@ use cardano/assets.{
   AssetName, PolicyId, Value, from_asset, lovelace_of, match, merge, quantity_of,
   tokens, zero,
 }
-use cardano/transaction.{InlineDatum, Input, NoDatum, Output, OutputReference}
+use cardano/transaction.{
+  DatumHash, InlineDatum, Input, NoDatum, Output, OutputReference,
+}
 use constants.{global_cfg_token, prefix_222}
-use types.{ClassifiedInputs, ClassifiedVaultInputs, SettingsDatum, VaultDatum}
+use types.{SettingsDatum, VaultDatum}
 use utils.{input_output_match}
 
 // ## Common
@@ -101,6 +103,9 @@ pub fn validate_protocol_utxos(
   output_valid?
 }
 
+/// Checks that the given output for the user:
+/// 1. has an address matching the owner address in the _request input_ datum
+/// 2. contains the same amount of S2 user tokens as in the minted value
 pub fn validate_liveshuffle_user_output(
   minted: Value,
   owner: Address,
@@ -131,6 +136,26 @@ pub fn validate_liveshuffle_user_output(
   and {
     address_valid?,
     tokens_match?,
+  }
+}
+
+/// Checks that the given output for the user:
+/// 1. has an address matching the owner address in the _request input_ datum
+/// 2. contains the same amount of S2 tokens as in the _request input_
+pub fn validate_reshuffle_user_output(
+  s2_qty_in_request: Int,
+  owner: Address,
+  user_output: Output,
+  cfg: SettingsDatum,
+) -> Bool {
+  let address_valid = user_output.address == owner
+  let s2_policy_id = cfg.s2_policy_id
+  let s2_qty_in_output = tokens(user_output.value, s2_policy_id) |> size()
+  let valid_s2_qty_in_output = s2_qty_in_request == s2_qty_in_output
+
+  and {
+    address_valid?,
+    valid_s2_qty_in_output?,
   }
 }
 
@@ -168,63 +193,6 @@ pub fn count_vault_inputs(inputs: List<Input>, settings: SettingsDatum) -> Int {
   )
 }
 
-/// Classifies inputs according to their source. i.e. from the `vault` and `protocol` contracts
-pub fn classify_inputs(
-  inputs: List<Input>,
-  settings: SettingsDatum,
-) -> ClassifiedInputs {
-  list.foldl(
-    inputs,
-    ClassifiedInputs {
-      vault: ClassifiedVaultInputs { request: [], pool: [] },
-      protocol: [],
-    },
-    fn(input, accum) {
-      when input.output.address.payment_credential is {
-        Script(script_hash) ->
-          if script_hash == settings.vault {
-            when input.output.datum is {
-              InlineDatum(datum) ->
-                if datum is VaultDatum {
-                  ClassifiedInputs {
-                    ..accum,
-                    vault: ClassifiedVaultInputs {
-                      ..accum.vault,
-                      request: list.push(accum.vault.request, input),
-                    },
-                  }
-                } else {
-                  ClassifiedInputs {
-                    ..accum,
-                    vault: ClassifiedVaultInputs {
-                      ..accum.vault,
-                      pool: list.push(accum.vault.pool, input),
-                    },
-                  }
-                }
-              _ ->
-                ClassifiedInputs {
-                  ..accum,
-                  vault: ClassifiedVaultInputs {
-                    ..accum.vault,
-                    pool: list.push(accum.vault.pool, input),
-                  },
-                }
-            }
-          } else if script_hash == settings.protocol {
-            ClassifiedInputs {
-              ..accum,
-              protocol: list.push(accum.protocol, input),
-            }
-          } else {
-            accum
-          }
-        _ -> accum
-      }
-    },
-  )
-}
-
 /// Returns the total value of the inputs from the vault contract that will be used to
 /// fulfill user's shuffle request.
 pub fn total_pool_inputs_value(
@@ -238,6 +206,7 @@ pub fn total_pool_inputs_value(
     fn(idx, accum) {
       expect Some(input) = list.at(inputs, idx)
       expect Script(cfg.vault) == input.output.address.payment_credential
+      expect NoDatum = input.output.datum
       merge(accum, input.output.value)
     },
   )
@@ -308,20 +277,38 @@ pub fn validate_cancel_shuffle_user_output(
 /// Check that all input utxos from the vault contract are actually bad ones. Meaning they either
 /// have no valid S2 tokens or have an invalid datum.
 pub fn confirm_bad_vault_utxos(
-  classified_inputs: ClassifiedInputs,
+  inputs: List<Input>,
   settings: SettingsDatum,
 ) -> Bool {
-  let ClassifiedVaultInputs { request: req_inputs, pool: pool_inputs } =
-    classified_inputs.vault
-
-  let all_vault_inputs = list.concat(req_inputs, pool_inputs)
-
-  // only checking here for number of s2 tokens contained by each input. the datum structure
-  // is already checked when classifying these inputs.
+  let vault_inputs =
+    list.filter(
+      inputs,
+      fn(input) {
+        Script(settings.vault) == input.output.address.payment_credential
+      },
+    )
   list.all(
-    all_vault_inputs,
+    vault_inputs,
     fn(input) {
-      0 == ( tokens(input.output.value, settings.s2_policy_id) |> size() )
+      let no_s2_tokens =
+        0 == ( tokens(input.output.value, settings.s2_policy_id) |> size() )
+
+      let has_bad_datum =
+        when input.output.datum is {
+          InlineDatum(datum) ->
+            if datum is VaultDatum {
+              False
+            } else {
+              True
+            }
+          DatumHash(_) -> True
+          _ -> False
+        }
+
+      or {
+        no_s2_tokens,
+        has_bad_datum,
+      }
     },
   )
 }

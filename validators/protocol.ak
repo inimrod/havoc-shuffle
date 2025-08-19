@@ -2,23 +2,20 @@
 
 use aiken/collection/dict.{keys, size, to_pairs}
 use aiken/collection/list
-use cardano/address.{Credential, Script, VerificationKey}
+use cardano/address.{Script, VerificationKey}
 use cardano/assets.{is_zero, tokens}
-use cardano/certificate.{Certificate, RegisterCredential, UnregisterCredential}
-use cardano/script_context.{ScriptContext}
 use cardano/transaction.{InlineDatum, OutputReference, Transaction}
-use constants.{global_cfg_token as cfg_token}
 use helpers.{
-  classify_inputs, confirm_bad_vault_utxos, count_vault_inputs, get_cfg,
-  total_pool_inputs_value, validate_cancel_shuffle_user_output,
-  validate_liveshuffle_return_utxo, validate_liveshuffle_user_output,
-  validate_protocol_utxos, validate_reshuffle_return_utxo,
+  confirm_bad_vault_utxos, count_vault_inputs, get_cfg, total_pool_inputs_value,
+  validate_cancel_shuffle_user_output, validate_liveshuffle_return_utxo,
+  validate_liveshuffle_user_output, validate_protocol_utxos,
+  validate_reshuffle_return_utxo, validate_reshuffle_user_output,
 }
 use types.{
-  CancelShuffle, ClassifiedInputs, LiveShuffle, ProtocolParams, ReShuffle,
-  RetireProtocol, SpendBadUtxo, UnifiedRedeemer, VaultDatum,
+  CancelShuffle, LiveShuffle, ProtocolParams, ReShuffle, RetireProtocol,
+  SpendBadUtxo, UnifiedRedeemer, VaultDatum,
 }
-use utils.{input_output_match, is_signed_by}
+use utils.{is_signed_by}
 
 validator protocol(params: ProtocolParams) {
   spend(
@@ -37,6 +34,8 @@ validator protocol(params: ProtocolParams) {
         let cfg = get_cfg(tx.reference_inputs, settings_idx, params.cfg_policy)
         // vault input and output
         expect Some(vault_input) = list.at(tx.inputs, vault_idxs.1st)
+        let vault_input_valid =
+          Script(cfg.vault) == vault_input.output.address.payment_credential
         expect InlineDatum(vault_datum) = vault_input.output.datum
         expect vault_datum: VaultDatum = vault_datum
         expect Some(vault_output) = list.at(tx.outputs, vault_idxs.2nd)
@@ -76,6 +75,7 @@ validator protocol(params: ProtocolParams) {
 
         and {
           protocol_utxos_valid?,
+          vault_input_valid?,
           vault_output_valid?,
           valid_shuffle_qty?,
           valid_mint_qty?,
@@ -100,23 +100,29 @@ validator protocol(params: ProtocolParams) {
         let cfg = get_cfg(tx.reference_inputs, settings_idx, params.cfg_policy)
         // make sure there are no minted tokens
         let no_tokens_minted = is_zero(tx.mint)
-        // get total Value of all vault inputs
-        let pool_inputs_value =
-          total_pool_inputs_value(tx.inputs, pool_idxs, cfg)
         // parse user request input
         expect Some(request_input) = list.at(tx.inputs, request_idx)
+        let valid_request_input =
+          Script(cfg.vault) == request_input.output.address.payment_credential
         expect InlineDatum(request_datum) = request_input.output.datum
-        expect request_datum: VaultDatum = request_datum
+        expect req_datum: VaultDatum = request_datum
         let s2_tokens_in_request =
           tokens(request_input.output.value, cfg.s2_policy_id)
         let s2_qty_in_request = size(s2_tokens_in_request)
 
+        // validate and get total Value of all vault inputs
+        let pool_inputs_value =
+          total_pool_inputs_value(tx.inputs, pool_idxs, cfg)
+
         // validate user and vault outputs
         expect Some(user_output) = list.at(tx.outputs, user_idx)
-        let s2_qty_in_user_output =
-          tokens(user_output.value, cfg.s2_policy_id) |> size()
-        let valid_s2_qty_in_user_output =
-          s2_qty_in_request == s2_qty_in_user_output
+        let valid_user_output =
+          validate_reshuffle_user_output(
+            s2_qty_in_request,
+            req_datum.owner,
+            user_output,
+            cfg,
+          )
         expect Some(vault_output) = list.at(tx.outputs, pool_oidx)
         let valid_reshuffle_return_utxo =
           validate_reshuffle_return_utxo(
@@ -126,11 +132,19 @@ validator protocol(params: ProtocolParams) {
             cfg.s2_policy_id,
           )
 
+        // make sure the tx only consumes the expected number of inputs from the vault contract
+        // 1 request utxo + however many pool utxos are needed (specified in redeemer)
+        let vault_inputs_count = count_vault_inputs(tx.inputs, cfg)
+        let expected_inputs_count = 1 + list.length(pool_idxs)
+        let valid_inputs_count = expected_inputs_count == vault_inputs_count
+
         and {
           protocol_utxos_valid?,
           no_tokens_minted?,
-          valid_s2_qty_in_user_output?,
+          valid_request_input?,
+          valid_user_output?,
           valid_reshuffle_return_utxo?,
+          valid_inputs_count?,
         }
       }
       CancelShuffle { protocol_idxs, settings_idx, request_idx, user_idx } -> {
@@ -146,6 +160,8 @@ validator protocol(params: ProtocolParams) {
 
         // parse datum in user request input
         expect Some(request_input) = list.at(tx.inputs, request_idx)
+        let valid_request_input =
+          Script(cfg.vault) == request_input.output.address.payment_credential
         expect InlineDatum(request_datum) = request_input.output.datum
         expect request_datum: VaultDatum = request_datum
 
@@ -155,7 +171,7 @@ validator protocol(params: ProtocolParams) {
             |> to_pairs()
         expect Some(user_output) = list.at(tx.outputs, user_idx)
         let s2_tokens_in_output = tokens(user_output.value, cfg.s2_policy_id)
-        let user_output_valid =
+        let valid_user_output =
           validate_cancel_shuffle_user_output(
             s2_tokens_in_request,
             s2_tokens_in_output,
@@ -173,7 +189,8 @@ validator protocol(params: ProtocolParams) {
         and {
           protocol_utxos_valid?,
           only_one_vault_input?,
-          user_output_valid?,
+          valid_request_input?,
+          valid_user_output?,
           validly_signed?,
         }
       }
@@ -185,65 +202,34 @@ validator protocol(params: ProtocolParams) {
         // get config settings
         let cfg = get_cfg(tx.reference_inputs, settings_idx, params.cfg_policy)
 
-        let classified_inputs = classify_inputs(tx.inputs, cfg)
-        let all_vault_inputs_bad =
-          confirm_bad_vault_utxos(classified_inputs, cfg)
+        let all_vault_inputs_bad = confirm_bad_vault_utxos(tx.inputs, cfg)
         let signed_by_admin = is_signed_by(tx.extra_signatories, cfg.admin)
         and {
+          protocol_utxos_valid?,
           all_vault_inputs_bad?,
           signed_by_admin?,
+        }
+      }
+
+      RetireProtocol { protocol_idx, settings_idx } -> {
+        expect Some(protocol_input) = list.at(tx.inputs, protocol_idx)
+        expect out_ref == protocol_input.output_reference
+        // get config settings
+        let cfg = get_cfg(tx.reference_inputs, settings_idx, params.cfg_policy)
+        let signed_by_admin = is_signed_by(tx.extra_signatories, cfg.admin)
+        // make sure there are no vault utxos spent
+        let no_vault_input = 0 == count_vault_inputs(tx.inputs, cfg)
+
+        and {
+          signed_by_admin?,
+          no_vault_input?,
         }
       }
       _ -> fail @"Invalid redeemer for protocol::spend"
     }
   }
 
-  withdraw(redeemer: UnifiedRedeemer, _own_cred: Credential, tx: Transaction) {
-    when redeemer is {
-      SpendBadUtxo { gcfg_utxo_idx, .. } -> {
-        let cfg = get_cfg(tx.reference_inputs, gcfg_utxo_idx, params.cfg_policy)
-        let signed_by_admin = is_signed_by(tx.extra_signatories, cfg.admin)
-        signed_by_admin?
-      }
-      _ -> fail @"Invalid redeemer for protocol::withdraw"
-    }
-  }
-
-  publish(redeemer: UnifiedRedeemer, cert: Certificate, tx: Transaction) {
-    when redeemer is {
-      // Not using input index here because at this time, offchain tx builder (lucid-evo) doesn't support
-      // RedeemerBuilder (redeemer indexing) for the `publish` validator purpose
-      RetireProtocol ->
-        when cert is {
-          UnregisterCredential { credential, .. } -> {
-            expect Script(own_hash) = credential
-            expect Some(cfg_input) =
-              list.find(
-                tx.inputs,
-                fn(input) {
-                  1 == quantity_of(
-                    input.output.value,
-                    params.cfg_policy,
-                    cfg_token,
-                  )
-                },
-              )
-            let cfg = get_global_settings_from_input(cfg_input)
-            let withdrawal_valid = cfg.protocol == own_hash
-            let signed_by_admin = is_signed_by(tx.extra_signatories, cfg.admin)
-            and {
-              withdrawal_valid?,
-              signed_by_admin?,
-            }
-          }
-          _ -> fail @"Unsupported certificate type for protocol::publish"
-        }
-      _ -> fail @"Invalid redeemer for protocol::publish"
-    }
-  }
-
-  else(context: ScriptContext) {
-    let tx: Transaction = context.transaction
-    is_signed_by(tx.extra_signatories, params.admin)
+  else(_) {
+    fail @"Unsupported purpose for protocol validator"
   }
 }

@@ -1,7 +1,6 @@
 use aiken/crypto.{Blake2b_224, Hash, ScriptHash, VerificationKeyHash}
 use cardano/address.{Address}
 use cardano/assets.{PolicyId}
-use cardano/transaction.{Input, Output}
 
 pub type SignerHash =
   Hash<Blake2b_224, ByteArray>
@@ -22,16 +21,6 @@ pub type VaultDatum {
 
 pub type ProtocolParams {
   cfg_policy: ScriptHash,
-}
-
-pub type ClassifiedVaultInputs {
-  request: List<Input>,
-  pool: List<Input>,
-}
-
-pub type ClassifiedInputs {
-  vault: ClassifiedVaultInputs,
-  protocol: List<Input>,
 }
 
 pub type UnifiedRedeemer {
@@ -76,8 +65,6 @@ pub type UnifiedRedeemer {
     user_idx: Int,
   }
 
-  RetireProtocol
-
   /// used for cleaning up bad utxos in settings and vault contracts
   SpendBadUtxo {
     /// Indeces of the protocol contract utxos (input and output).
@@ -86,6 +73,13 @@ pub type UnifiedRedeemer {
     /// Index of the bad utxo input
     /// This may be provided with placeholder value only, if cleaning up bad utxos in vault contract.
     bad_utxo_idx: Int,
+    /// Index of the settings *reference* input
+    settings_idx: Int,
+  }
+
+  RetireProtocol {
+    /// Index of the protocol contract input utxo
+    protocol_idx: Int,
     /// Index of the settings *reference* input
     settings_idx: Int,
   }
