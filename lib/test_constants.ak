@@ -1,7 +1,8 @@
 use cardano/address.{Address, Inline, Script, VerificationKey}
 use cardano/assets.{from_asset, from_lovelace, merge, zero}
 use cardano/transaction.{InlineDatum, Input, NoDatum, Output, OutputReference}
-use types.{ProtocolParams, SettingsDatum, VaultDatum, VaultParams}
+use constants.{global_cfg_token}
+use types.{ProtocolParams, SettingsDatum, VaultDatum}
 
 pub const settings_script_hash =
   #"00a0b79a29bb50da169ef9ee302aa8acca1dd62ba2d7fa57331847f0"
@@ -15,6 +16,9 @@ pub const protocol_script_hash =
 pub const s2_policy_id =
   #"00a0b79a29bb50da169ef9ee302aa8acca1dd62ba2d7fa57331847f3"
 
+pub const reftokens_scripthash =
+  #"7b2daab94563c91a58f4b0e74f405ec3ca83989da40541e911f20455"
+
 pub const admin_key_hash =
   #"da299558c70a8970781806dca93d1801ba2f3b3894227a7b284786e4"
 
@@ -23,8 +27,6 @@ pub const user_payment_keyhash =
 
 pub const user_staking_keyhash =
   #"6313a1d2c296eb3341e159b6c5c6991de11e81062b95108c9aa024ad"
-
-pub const beacon_asset_name = #"73657474696e6773"
 
 pub const user_address =
   Address {
@@ -50,24 +52,19 @@ pub const protocol_script_address =
     stake_credential: None,
   }
 
-pub const protocol_params =
-  ProtocolParams {
-    admin: admin_key_hash,
-    settings_policy: settings_script_hash,
-    beacon_asset_name,
+pub const reftokens_script_address =
+  Address {
+    payment_credential: Script(reftokens_scripthash),
+    stake_credential: None,
   }
 
-pub const vault_params =
-  VaultParams {
-    admin: admin_key_hash,
-    settings_policy: settings_script_hash,
-    beacon_asset_name,
-  }
+pub const protocol_params = ProtocolParams { cfg_policy: settings_script_hash }
 
 pub const settings_datum =
   SettingsDatum {
+    admin: admin_key_hash,
     refscripts: settings_script_hash,
-    reftokens: settings_script_hash,
+    reftokens: reftokens_scripthash,
     vault: vault_script_hash,
     protocol: protocol_script_hash,
     s2_policy_id,
@@ -83,13 +80,19 @@ pub const settings_output_ref =
 pub const settings_output =
   Output {
     address: settings_script_address,
-    value: from_asset(settings_script_hash, beacon_asset_name, 1),
+    value: from_asset(settings_script_hash, global_cfg_token, 1),
     datum: InlineDatum(settings_datum),
     reference_script: None,
   }
 
 pub const settings_input =
   Input { output_reference: settings_output_ref, output: settings_output }
+
+pub const init_output_ref =
+  OutputReference {
+    transaction_id: #"0000000000000000000000000000000000000000000000000000000000000069",
+    output_index: 0,
+  }
 
 pub const protocol_output_ref =
   OutputReference {
@@ -211,6 +214,35 @@ pub const user_liveshuffle_output_from_mint =
   Output {
     address: user_address,
     value: user_tokens_value,
+    datum: NoDatum,
+    reference_script: None,
+  }
+
+pub const cip68_reftoken_output1_ref =
+  OutputReference {
+    transaction_id: #"0000000000000000000000000000000000000000000000000000000000000005",
+    output_index: 0,
+  }
+
+pub const cip68_reftoken_output2_ref =
+  OutputReference {
+    transaction_id: #"0000000000000000000000000000000000000000000000000000000000000005",
+    output_index: 1,
+  }
+
+// HW S2 1069 Ref
+pub const cip68_reftoken1_output =
+  Output {
+    address: reftokens_script_address,
+    value: from_asset(s2_policy_id, #"000643b048572053322031303639", 1),
+    datum: NoDatum,
+    reference_script: None,
+  }
+
+pub const cip68_reftoken2_output =
+  Output {
+    address: reftokens_script_address,
+    value: from_asset(s2_policy_id, #"000643b048572053322030303639", 1),
     datum: NoDatum,
     reference_script: None,
   }
