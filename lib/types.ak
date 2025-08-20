@@ -34,8 +34,8 @@ pub type UnifiedRedeemer {
     vault_idxs: (Int, Int),
     /// Index of the output to the user
     user_idx: Int,
-    /// Index of the CIP68 reftoken output
-    ref_idx: Int,
+    /// Indeces of the CIP68 reftoken outputs
+    ref_idxs: List<Int>,
     /// Index of the settings *reference* input
     settings_idx: Int,
   }

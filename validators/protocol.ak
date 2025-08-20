@@ -7,9 +7,10 @@ use cardano/assets.{is_zero, tokens}
 use cardano/transaction.{InlineDatum, OutputReference, Transaction}
 use helpers.{
   confirm_bad_vault_utxos, count_vault_inputs, get_cfg, total_pool_inputs_value,
-  validate_cancel_shuffle_user_output, validate_liveshuffle_return_utxo,
-  validate_liveshuffle_user_output, validate_protocol_utxos,
-  validate_reshuffle_return_utxo, validate_reshuffle_user_output,
+  validate_cancel_shuffle_user_output, validate_liveshuffle_ref_outputs,
+  validate_liveshuffle_return_utxo, validate_liveshuffle_user_output,
+  validate_protocol_utxos, validate_reshuffle_return_utxo,
+  validate_reshuffle_user_output,
 }
 use types.{
   CancelShuffle, LiveShuffle, ProtocolParams, ReShuffle, RetireProtocol,
@@ -25,7 +26,13 @@ validator protocol(params: ProtocolParams) {
     tx: Transaction,
   ) {
     when redeemer is {
-      LiveShuffle { protocol_idxs, vault_idxs, user_idx, ref_idx, settings_idx } -> {
+      LiveShuffle {
+        protocol_idxs,
+        vault_idxs,
+        user_idx,
+        ref_idxs,
+        settings_idx,
+      } -> {
         // protocol input and output validation
         let protocol_utxos_valid =
           validate_protocol_utxos(tx.inputs, tx.outputs, out_ref, protocol_idxs)
@@ -62,16 +69,18 @@ validator protocol(params: ProtocolParams) {
         let valid_mint_recipient =
           validate_liveshuffle_user_output(tx.mint, owner, user_output, cfg)
 
-        // validate cip68 ref token output
-        expect Some(ref_output) = list.at(tx.outputs, ref_idx)
-        let valid_ref_output =
-          Script(cfg.reftokens) == ref_output.address.payment_credential
+        // validate cip68 ref token outputs
+        let valid_ref_outputs =
+          validate_liveshuffle_ref_outputs(tx.outputs, ref_idxs, cfg)
 
         // restrict number of inputs and outputs
         // inputs should only be 1 from protocol and 1 from vault contract
-        // outputs should only be 1 to protocol, 1 to vault, 1 to refTokens contract, and 1 to user
+        // outputs should only be 1 to protocol, 1 to vault, 1 to user, plus however many
+        // CIP68 reftoken outputs there are.
         let inputs_count_valid = 2 == list.length(tx.inputs)
-        let outputs_count_valid = 4 == list.length(tx.outputs)
+        let expected_outputs_count = 3 + list.length(ref_idxs)
+        let outputs_count_valid =
+          expected_outputs_count == list.length(tx.outputs)
 
         and {
           protocol_utxos_valid?,
@@ -80,7 +89,7 @@ validator protocol(params: ProtocolParams) {
           valid_shuffle_qty?,
           valid_mint_qty?,
           valid_mint_recipient?,
-          valid_ref_output?,
+          valid_ref_outputs?,
           inputs_count_valid?,
           outputs_count_valid?,
         }

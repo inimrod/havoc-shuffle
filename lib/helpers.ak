@@ -139,6 +139,21 @@ pub fn validate_liveshuffle_user_output(
   }
 }
 
+/// Checks that the CIP68 reference token outputs are all sent to the `reftokens` contract
+pub fn validate_liveshuffle_ref_outputs(
+  tx_outputs: List<Output>,
+  ref_idxs: List<Int>,
+  cfg: SettingsDatum,
+) -> Bool {
+  list.all(
+    ref_idxs,
+    fn(idx) {
+      expect Some(ref_output) = list.at(tx_outputs, idx)
+      Script(cfg.reftokens) == ref_output.address.payment_credential
+    },
+  )
+}
+
 /// Checks that the given output for the user:
 /// 1. has an address matching the owner address in the _request input_ datum
 /// 2. contains the same amount of S2 tokens as in the _request input_
