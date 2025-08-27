@@ -1,4 +1,4 @@
-use aiken/collection/dict.{Dict, foldl, get, has_key, size}
+use aiken/collection/dict.{foldl, get, has_key, size, to_pairs}
 use aiken/collection/list
 use aiken/crypto.{ScriptHash}
 use aiken/option.{or_else}
@@ -121,8 +121,8 @@ pub fn validate_liveshuffle_user_output(
       zero,
       fn(token_name, qty, accum) {
         if prefix_222 == bytearray.slice(token_name, 0, 3) {
-          trace @"token_name": token_name
-          trace @"prefix": bytearray.slice(token_name, 0, 3)
+          // trace @"token_name": token_name
+          // trace @"prefix": bytearray.slice(token_name, 0, 3)
           let user_token_value = from_asset(s2_policy_id, token_name, qty)
           merge(accum, user_token_value)
         } else {
@@ -130,8 +130,8 @@ pub fn validate_liveshuffle_user_output(
         }
       },
     )
-  trace @"minted_user_tokens": minted_user_tokens
-  trace @"user_output.value": user_output.value
+  // trace @"minted_user_tokens": minted_user_tokens
+  // trace @"user_output.value": user_output.value
   let tokens_match = match(minted_user_tokens, user_output.value, <=)
   and {
     address_valid?,
@@ -246,11 +246,11 @@ pub fn validate_reshuffle_return_utxo(
   let s2_tokens_in_output = tokens(vault_output.value, s2_policy_id)
   let s2_qty_in_output = size(s2_tokens_in_output)
   let valid_s2_qty_in_output = s2_qty_in_output == s2_qty_in_inputs
-  trace @"s2_qty_in_inputs ": s2_qty_in_inputs
-  trace @"s2_tokens_in_output ": s2_tokens_in_output
-  trace @"s2_qty_in_output ": s2_qty_in_output
-  trace @"valid_s2_qty_in_output ": valid_s2_qty_in_output
 
+  // trace @"s2_qty_in_inputs ": s2_qty_in_inputs
+  // trace @"s2_tokens_in_output ": s2_tokens_in_output
+  // trace @"s2_qty_in_output ": s2_qty_in_output
+  // trace @"valid_s2_qty_in_output ": valid_s2_qty_in_output
   let valid_reshuffled_s2_output =
     list.all(
       s2_tokens_in_request,
@@ -271,22 +271,35 @@ pub fn validate_reshuffle_return_utxo(
   }
 }
 
-/// Check that the tokens contained in the output for the user, is exactly the same
-/// as the tokens in their request input.
+/// Checks that the given output for the user:
+/// 1. contains the same S2 tokens from the _request input_
+/// 2. has an address matching the owner address in the _request input_ datum
 pub fn validate_cancel_shuffle_user_output(
-  s2_tokens_in_request: Pairs<AssetName, Int>,
-  s2_tokens_in_output: Dict<AssetName, Int>,
+  request_input: Input,
+  user_output: Output,
+  cfg: SettingsDatum,
 ) -> Bool {
-  list.all(
-    s2_tokens_in_request,
-    fn(tkn_pair) {
-      let token_name = tkn_pair.1st
-      let token_qty = tkn_pair.2nd
-      let token_qty_in_output =
-        get(s2_tokens_in_output, token_name) |> or_else(0)
-      token_qty == token_qty_in_output
-    },
-  )
+  // validate user output contents
+  let s2_tokens_in_request =
+    tokens(request_input.output.value, cfg.s2_policy_id)
+      |> to_pairs()
+  let s2_tokens_in_output = tokens(user_output.value, cfg.s2_policy_id)
+  let tokens_match =
+    list.all(
+      s2_tokens_in_request,
+      fn(tkn_pair) {
+        let token_name = tkn_pair.1st
+        let token_qty = tkn_pair.2nd
+        let token_qty_in_output =
+          get(s2_tokens_in_output, token_name) |> or_else(0)
+        token_qty == token_qty_in_output
+      },
+    )
+  let address_valid = user_output.address == request_input.output.address
+  and {
+    tokens_match?,
+    address_valid?,
+  }
 }
 
 /// Check that all input utxos from the vault contract are actually bad ones. Meaning they either

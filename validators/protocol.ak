@@ -1,6 +1,6 @@
 //// This contains the main validator business logic
 
-use aiken/collection/dict.{keys, size, to_pairs}
+use aiken/collection/dict.{keys, size}
 use aiken/collection/list
 use cardano/address.{Script, VerificationKey}
 use cardano/assets.{is_zero, tokens}
@@ -57,8 +57,6 @@ validator protocol(params: ProtocolParams) {
             input_nfts_qty >= 1,
             input_nfts_qty <= cfg.max_to_shuffle,
           }
-        trace @"input_nfts_qty ": input_nfts_qty
-        trace @"minted_nfts_qty ": minted_nfts_qty
 
         // CIP68 tokens are always minted in pairs: the user and the reference tokens
         let valid_mint_qty = minted_nfts_qty == input_nfts_qty * 2
@@ -175,16 +173,9 @@ validator protocol(params: ProtocolParams) {
         expect request_datum: VaultDatum = request_datum
 
         // validate user output contents
-        let s2_tokens_in_request =
-          tokens(request_input.output.value, cfg.s2_policy_id)
-            |> to_pairs()
         expect Some(user_output) = list.at(tx.outputs, user_idx)
-        let s2_tokens_in_output = tokens(user_output.value, cfg.s2_policy_id)
         let valid_user_output =
-          validate_cancel_shuffle_user_output(
-            s2_tokens_in_request,
-            s2_tokens_in_output,
-          )
+          validate_cancel_shuffle_user_output(request_input, user_output, cfg)
 
         // check that the tx is signed either by the owner of the request input, or by admin
         let owner =

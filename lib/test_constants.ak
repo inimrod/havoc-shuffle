@@ -230,6 +230,14 @@ pub const user_liveshuffle_output_from_mint =
     reference_script: None,
   }
 
+pub const user_liveshuffle_output_from_mint_bad =
+  Output {
+    address: reftokens_script_address,
+    value: user_tokens_value,
+    datum: NoDatum,
+    reference_script: None,
+  }
+
 pub const cip68_reftoken_output1_ref =
   OutputReference {
     transaction_id: #"0000000000000000000000000000000000000000000000000000000000000005",
@@ -320,6 +328,15 @@ pub const test_tx_liveshuffle =
     reference_inputs: [settings_input],
   }
 
+pub const test_bad_tx_liveshuffle =
+  Transaction {
+    ..test_tx_liveshuffle,
+    outputs: [
+      vault_output_pool, protocol_output, user_liveshuffle_output_from_mint_bad,
+      cip68_reftoken1_output, cip68_reftoken2_output,
+    ],
+  }
+
 /// ReShuffle Test Tx
 pub const test_tx_reshuffle =
   Transaction {
@@ -327,6 +344,15 @@ pub const test_tx_reshuffle =
     inputs: [protocol_input, vault_input_request, vault_reshuffle_input],
     outputs: [protocol_output, vault_reshuffle_output, user_reshuffle_output],
     reference_inputs: [settings_input],
+  }
+
+pub const test_bad_tx_reshuffle =
+  Transaction {
+    ..test_tx_reshuffle,
+    inputs: [
+      protocol_input, vault_input_request, vault_reshuffle_input,
+      vault_input_pool,
+    ],
   }
 
 /// CancelShuffle Test Tx
@@ -339,6 +365,9 @@ pub const test_tx_cancel_shuffle =
     extra_signatories: [user_payment_keyhash],
   }
 
+pub const test_bad_tx_cancel_shuffle =
+  Transaction { ..test_tx_cancel_shuffle, extra_signatories: [] }
+
 /// Vaul SpendBadUtxo Test Tx
 pub const test_tx_spend_bad_utxo_vault =
   Transaction {
@@ -347,4 +376,28 @@ pub const test_tx_spend_bad_utxo_vault =
     outputs: [protocol_output, bad_utxo_frm_vault_to_usr.output],
     reference_inputs: [settings_input],
     extra_signatories: [admin_key_hash],
+  }
+
+pub const test_bad_tx_spend_bad_utxo_vault =
+  Transaction {
+    ..test_tx_spend_bad_utxo_vault,
+    inputs: [protocol_input, vault_input_request],
+    outputs: [protocol_output, bad_utxo_frm_vault_to_usr.output],
+  }
+
+/// RetireProtocol Test Tx
+pub const test_tx_retire_protocol =
+  Transaction {
+    ..placeholder,
+    inputs: [protocol_input],
+    outputs: [],
+    reference_inputs: [settings_input],
+    extra_signatories: [admin_key_hash],
+  }
+
+pub const test_bad_tx_retire_protocol =
+  Transaction {
+    ..test_tx_retire_protocol,
+    inputs: [protocol_input, vault_reshuffle_input],
+    outputs: [user_reshuffle_output],
   }
