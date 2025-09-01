@@ -1,104 +1,116 @@
-use cardano/transaction.{InlineDatum, Output, Transaction, placeholder}
 use settings
 use test_constants as tc
-use types.{ReadSettings, SettingsDatum, UpdateSettings}
+use types.{BurnSettingsBeacon, MintSettingsBeacon, SpendBadUtxo, UpdateSettings}
 
-test read_settings_succeed() {
-  let this_tx =
-    Transaction {
-      ..placeholder,
-      mint: tc.hw_s2_1042_usr,
-      inputs: [
-        tc.settings_input,
-        tc.vault_input_request,
-        tc.protocol_input,
-        tc.user_liveshuffle_input,
-      ],
-      outputs: [
-        tc.settings_output,
-        tc.vault_output_pool,
-        tc.protocol_output,
-        tc.user_liveshuffle_output_from_mint,
-      ],
-    }
-  let datum = Some(tc.settings_datum)
-  let redeemer = ReadSettings
+test mint_mint_beacon_succeed() {
+  let redeemer = MintSettingsBeacon { init_utxo_idx: 0 }
+  settings.settings.mint(
+    tc.init_output_ref,
+    redeemer,
+    tc.settings_script_hash,
+    tc.test_tx_mint_settings_bcn,
+  )
+}
+
+// fail point: init utxo not included in tx inputs
+test mint_mint_beacon_fail() fail {
+  let redeemer = MintSettingsBeacon { init_utxo_idx: 0 }
+  settings.settings.mint(
+    tc.init_output_ref,
+    redeemer,
+    tc.settings_script_hash,
+    tc.test_bad_tx_mint_settings_bcn,
+  )
+}
+
+test mint_burn_beacon_succeed() {
+  let redeemer = BurnSettingsBeacon { gcfg_utxo_idx: 0 }
+  settings.settings.mint(
+    tc.init_output_ref,
+    redeemer,
+    tc.settings_script_hash,
+    tc.test_tx_burn_settings_bcn,
+  )
+}
+
+// fail point: beacon token not burned
+test mint_burn_beacon_fail() fail {
+  let redeemer = BurnSettingsBeacon { gcfg_utxo_idx: 0 }
+  settings.settings.mint(
+    tc.init_output_ref,
+    redeemer,
+    tc.settings_script_hash,
+    tc.test_bad_tx_burn_settings_bcn,
+  )
+}
+
+test spend_update_cfg_succeed() {
+  let redeemer = UpdateSettings { input_idx: 0, output_idx: 0 }
   settings.settings.spend(
-    tc.admin_key_hash,
-    datum,
+    tc.init_output_ref,
+    Some(tc.settings_datum_data),
     redeemer,
     tc.settings_output_ref,
-    this_tx,
+    tc.test_tx_update_settings,
   )
 }
 
-test read_settings_fail() {
-  let new_settings_datum =
-    SettingsDatum { ..tc.settings_datum, max_to_shuffle: 4 }
-  let settings_output =
-    Output { ..tc.settings_output, datum: InlineDatum(new_settings_datum) }
-  let this_tx =
-    Transaction {
-      ..placeholder,
-      mint: tc.hw_s2_1042_usr,
-      inputs: [
-        tc.settings_input,
-        tc.vault_input_request,
-        tc.protocol_input,
-        tc.user_liveshuffle_input,
-      ],
-      outputs: [
-        settings_output,
-        tc.vault_output_pool,
-        tc.protocol_output,
-        tc.user_liveshuffle_output_from_mint,
-      ],
-    }
-  let datum = Some(tc.settings_datum)
-  let redeemer = ReadSettings
-  False == settings.settings.spend(
-    tc.admin_key_hash,
-    datum,
-    redeemer,
-    tc.settings_output_ref,
-    this_tx,
-  )
-}
-
-test update_settings_succeed() {
-  let this_tx =
-    Transaction {
-      ..placeholder,
-      inputs: [tc.settings_input],
-      outputs: [tc.settings_output],
-      extra_signatories: [tc.admin_key_hash],
-    }
-  let datum = Some(tc.settings_datum)
-  let redeemer = UpdateSettings
+// fail point: beacon token not included in settings output utxo
+test spend_update_cfg_fail() fail {
+  let redeemer = UpdateSettings { input_idx: 0, output_idx: 0 }
   settings.settings.spend(
-    tc.admin_key_hash,
-    datum,
+    tc.init_output_ref,
+    Some(tc.settings_datum_data),
     redeemer,
     tc.settings_output_ref,
-    this_tx,
+    tc.test_bad_tx_update_settings,
   )
 }
 
-test update_settings_fail() {
-  let this_tx =
-    Transaction {
-      ..placeholder,
-      inputs: [tc.settings_input],
-      outputs: [tc.settings_output],
-      extra_signatories: [tc.user_payment_keyhash],
-    }
-  let datum = Some(tc.settings_datum)
-  let redeemer = UpdateSettings
-  False == settings.settings.spend(
-    tc.admin_key_hash,
-    datum,
+test spend_burn_beacon_succeed() {
+  let redeemer = BurnSettingsBeacon { gcfg_utxo_idx: 0 }
+  settings.settings.spend(
+    tc.init_output_ref,
+    Some(tc.settings_datum_data),
     redeemer,
     tc.settings_output_ref,
-    this_tx,
+    tc.test_tx_burn_settings_bcn,
+  )
+}
+
+// fail point: beacon token not burned
+test spend_burn_beacon_fail() fail {
+  let redeemer = BurnSettingsBeacon { gcfg_utxo_idx: 0 }
+  settings.settings.spend(
+    tc.init_output_ref,
+    Some(tc.settings_datum_data),
+    redeemer,
+    tc.settings_output_ref,
+    tc.test_bad_tx_burn_settings_bcn,
+  )
+}
+
+test spend_bad_utxo_succeed() {
+  let redeemer =
+    SpendBadUtxo { protocol_idxs: (0, 0), bad_utxo_idx: 0, settings_idx: 0 }
+  settings.settings.spend(
+    tc.init_output_ref,
+    Some(tc.settings_datum_data),
+    redeemer,
+    tc.settings_output_ref,
+    tc.test_tx_spend_bad_utxo_settings,
+  )
+}
+
+// fail point: 
+test spend_bad_utxo_fail() fail {
+  let redeemer =
+    SpendBadUtxo { protocol_idxs: (0, 0), bad_utxo_idx: 0, settings_idx: 0 }
+  settings.settings.spend(
+    tc.init_output_ref,
+    Some(tc.settings_datum_data),
+    redeemer,
+    tc.settings_output_ref,
+    tc.test_bad_tx_spend_bad_utxo_settings,
   )
 }

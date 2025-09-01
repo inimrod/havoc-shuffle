@@ -1,3 +1,4 @@
+use aiken/builtin.{b_data, serialise_data}
 use cardano/address.{Address, Inline, Script, VerificationKey}
 use cardano/assets.{from_asset, from_lovelace, merge, zero}
 use cardano/transaction.{
@@ -29,6 +30,12 @@ pub const user_payment_keyhash =
 
 pub const user_staking_keyhash =
   #"6313a1d2c296eb3341e159b6c5c6991de11e81062b95108c9aa024ad"
+
+pub const admin_address =
+  Address {
+    payment_credential: VerificationKey(admin_key_hash),
+    stake_credential: Some(Inline(VerificationKey(admin_key_hash))),
+  }
 
 pub const user_address =
   Address {
@@ -73,6 +80,8 @@ pub const settings_datum =
     max_to_shuffle: 5,
   }
 
+pub const settings_datum_data = b_data(serialise_data(settings_datum))
+
 pub const settings_output_ref =
   OutputReference {
     transaction_id: #"0000000000000000000000000000000000000000000000000000000000000000",
@@ -87,6 +96,14 @@ pub const settings_output =
     reference_script: None,
   }
 
+pub const settings_output_bad =
+  Output {
+    address: settings_script_address,
+    value: from_lovelace(100_000_000),
+    datum: InlineDatum(settings_datum),
+    reference_script: None,
+  }
+
 pub const settings_input =
   Input { output_reference: settings_output_ref, output: settings_output }
 
@@ -94,6 +111,17 @@ pub const init_output_ref =
   OutputReference {
     transaction_id: #"0000000000000000000000000000000000000000000000000000000000000069",
     output_index: 0,
+  }
+
+pub const settings_init_utxo =
+  Input {
+    output_reference: init_output_ref,
+    output: Output {
+      address: admin_address,
+      value: from_lovelace(100_000_000),
+      datum: NoDatum,
+      reference_script: None,
+    },
   }
 
 // Protocol contract utxo
@@ -315,6 +343,9 @@ pub const bad_utxo_frm_vault_to_usr =
     output: Output { ..vault_output_request, datum: NoDatum },
   }
 
+pub const bad_utxo_settings =
+  Input { output_reference: settings_output_ref, output: settings_output_bad }
+
 /// Liveshuffle Test Tx
 pub const test_tx_liveshuffle =
   Transaction {
@@ -374,7 +405,7 @@ pub const test_tx_cancel_shuffle =
 pub const test_bad_tx_cancel_shuffle =
   Transaction { ..test_tx_cancel_shuffle, extra_signatories: [] }
 
-/// Vaul SpendBadUtxo Test Tx
+/// Vault SpendBadUtxo Test Tx
 pub const test_tx_spend_bad_utxo_vault =
   Transaction {
     ..placeholder,
@@ -407,3 +438,54 @@ pub const test_bad_tx_retire_protocol =
     inputs: [protocol_input, vault_reshuffle_input],
     outputs: [user_reshuffle_output],
   }
+
+/// Settings MintSettingsBeacon Test Tx
+pub const test_tx_mint_settings_bcn =
+  Transaction {
+    ..placeholder,
+    mint: from_asset(settings_script_hash, global_cfg_token, 1),
+    inputs: [settings_init_utxo],
+    outputs: [settings_output],
+  }
+
+pub const test_bad_tx_mint_settings_bcn =
+  Transaction { ..test_tx_mint_settings_bcn, inputs: [user_liveshuffle_input] }
+
+/// Settings BurnSettingsBeacon Test Tx
+pub const test_tx_burn_settings_bcn =
+  Transaction {
+    ..placeholder,
+    mint: from_asset(settings_script_hash, global_cfg_token, -1),
+    inputs: [settings_input],
+    extra_signatories: [admin_key_hash],
+  }
+
+pub const test_bad_tx_burn_settings_bcn =
+  Transaction {
+    ..test_tx_burn_settings_bcn,
+    mint: from_asset(settings_script_hash, global_cfg_token, 1),
+  }
+
+/// Settings UpdateSettings Test Tx
+pub const test_tx_update_settings =
+  Transaction {
+    ..placeholder,
+    inputs: [settings_input],
+    outputs: [settings_output],
+    extra_signatories: [admin_key_hash],
+  }
+
+pub const test_bad_tx_update_settings =
+  Transaction { ..test_tx_update_settings, outputs: [settings_output_bad] }
+
+/// Settings SpendBadUtxo Test Tx
+pub const test_tx_spend_bad_utxo_settings =
+  Transaction {
+    ..placeholder,
+    inputs: [bad_utxo_settings],
+    reference_inputs: [settings_input],
+    extra_signatories: [admin_key_hash],
+  }
+
+pub const test_bad_tx_spend_bad_utxo_settings =
+  Transaction { ..test_tx_spend_bad_utxo_settings, inputs: [settings_input] }
