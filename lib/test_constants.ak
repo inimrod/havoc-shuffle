@@ -355,6 +355,12 @@ pub const test_bad_tx_reshuffle =
     ],
   }
 
+pub const test_bad_tx_reshuffle_2 =
+  Transaction {
+    ..test_tx_reshuffle,
+    inputs: [vault_input_request, vault_reshuffle_input, vault_input_pool],
+  }
+
 /// CancelShuffle Test Tx
 pub const test_tx_cancel_shuffle =
   Transaction {
