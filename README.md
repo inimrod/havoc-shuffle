@@ -97,7 +97,7 @@ The protocol is mainly composed of 3 validators: `settings.ak`, `vault.ak`, and 
 
   It only allows spending of its held UTXOs if:
   
-  1. ✅ The redeemer is one of the following: `LiveShuffle`, `ReShuffle`, `CancelShuffle`, and `SpendBadUtxo`.
+  1. ✅ The redeemer is one of the following: `LiveShuffle`, `ReShuffle`, `CancelShuffle`, `Administer` and `SpendBadUtxo`.
   1. ✅ One of the _reference inputs_ is the _config utxo_.
   1. ✅ One of the _inputs_ consumed is a utxo held by the `protocol` contract. This triggers the evaluation of the `protocol`'s validation logic.
 
@@ -153,6 +153,13 @@ The protocol is mainly composed of 3 validators: `settings.ak`, `vault.ak`, and 
        1. ✅ contain in its datum the requesting user's address.    
     1. ✅ The assets in the _request utxo_ must all be included the _user output_ sepcified in the redeemer.
     1. ✅ The transaction must be signed either by the requesting user, or by the admin.
+
+  - Redeemer `Administer`: This is used for handling assets in the vault contract for administrative purposes like combining or splitting utxos, appropriating funds, and similar purposes.
+  
+    1. ✅ The utxo from the `protocol` contract that is consumed in the tx, is returned with no changes.
+    1. ✅ The _config utxo_ should be among the reference inputs (expected, since also required by `vault`).
+    1. ✅ All the input utxos from the `vault` contract must *not* contain a valid `VaultDatum` (meaning they are all owned by the pool only)
+    1. ✅ The transaction must be signed by the protocol admin.
 
   - Redeemer `SpendBadUtxo`: This is used for consuming spam utxos or any utxos with malformed datum at the `vault` contract.
 

@@ -65,6 +65,14 @@ pub type UnifiedRedeemer {
     user_idx: Int,
   }
 
+  /// used for handling assets in the vault contract for administrative purposes
+  Administer {
+    /// Indeces of the protocol contract utxos (input and output)
+    protocol_idxs: (Int, Int),
+    /// Index of the settings *reference* input
+    settings_idx: Int,
+  }
+
   /// used for cleaning up bad utxos in settings and vault contracts
   SpendBadUtxo {
     /// Indeces of the protocol contract utxos (input and output).

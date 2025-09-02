@@ -302,19 +302,53 @@ pub fn validate_cancel_shuffle_user_output(
   }
 }
 
+/// Filters the given list of inputs and returns only those that belong to the vault contract.
+pub fn filter_vault_inputs(
+  inputs: List<Input>,
+  vault_hash: ScriptHash,
+) -> List<Input> {
+  list.filter(
+    inputs,
+    fn(input) { Script(vault_hash) == input.output.address.payment_credential },
+  )
+}
+
+/// Check that all input utxos from the vault contract contain S2 tokens and are protocol-owned.
+pub fn confirm_pool_utxos(inputs: List<Input>, settings: SettingsDatum) -> Bool {
+  let vault_inputs = filter_vault_inputs(inputs, settings.vault)
+  list.all(
+    vault_inputs,
+    fn(input) {
+      let has_s2_tokens =
+        0 < ( tokens(input.output.value, settings.s2_policy_id) |> size() )
+
+      let protocol_owned =
+        when input.output.datum is {
+          InlineDatum(datum) ->
+            if datum is VaultDatum {
+              False
+            } else {
+              True
+            }
+          DatumHash(_) -> True
+          _ -> True
+        }
+
+      and {
+        has_s2_tokens,
+        protocol_owned,
+      }
+    },
+  )
+}
+
 /// Check that all input utxos from the vault contract are actually bad ones. Meaning they either
 /// have no valid S2 tokens or have an invalid datum.
 pub fn confirm_bad_vault_utxos(
   inputs: List<Input>,
   settings: SettingsDatum,
 ) -> Bool {
-  let vault_inputs =
-    list.filter(
-      inputs,
-      fn(input) {
-        Script(settings.vault) == input.output.address.payment_credential
-      },
-    )
+  let vault_inputs = filter_vault_inputs(inputs, settings.vault)
   list.all(
     vault_inputs,
     fn(input) {

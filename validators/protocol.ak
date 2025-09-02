@@ -6,15 +6,15 @@ use cardano/address.{Script, VerificationKey}
 use cardano/assets.{is_zero, tokens}
 use cardano/transaction.{InlineDatum, OutputReference, Transaction}
 use helpers.{
-  confirm_bad_vault_utxos, count_vault_inputs, get_cfg, total_pool_inputs_value,
-  validate_cancel_shuffle_user_output, validate_liveshuffle_ref_outputs,
-  validate_liveshuffle_return_utxo, validate_liveshuffle_user_output,
-  validate_protocol_utxos, validate_reshuffle_return_utxo,
-  validate_reshuffle_user_output,
+  confirm_bad_vault_utxos, confirm_pool_utxos, count_vault_inputs, get_cfg,
+  total_pool_inputs_value, validate_cancel_shuffle_user_output,
+  validate_liveshuffle_ref_outputs, validate_liveshuffle_return_utxo,
+  validate_liveshuffle_user_output, validate_protocol_utxos,
+  validate_reshuffle_return_utxo, validate_reshuffle_user_output,
 }
 use types.{
-  CancelShuffle, LiveShuffle, ProtocolParams, ReShuffle, RetireProtocol,
-  SpendBadUtxo, UnifiedRedeemer, VaultDatum,
+  Administer, CancelShuffle, LiveShuffle, ProtocolParams, ReShuffle,
+  RetireProtocol, SpendBadUtxo, UnifiedRedeemer, VaultDatum,
 }
 use utils.{is_signed_by}
 
@@ -192,6 +192,23 @@ validator protocol(params: ProtocolParams) {
           valid_request_input?,
           valid_user_output?,
           validly_signed?,
+        }
+      }
+
+      Administer { protocol_idxs, settings_idx } -> {
+        // protocol input and output validation
+        let protocol_utxos_valid =
+          validate_protocol_utxos(tx.inputs, tx.outputs, out_ref, protocol_idxs)
+
+        // get config settings
+        let cfg = get_cfg(tx.reference_inputs, settings_idx, params.cfg_policy)
+        let all_vault_inputs_valid = confirm_pool_utxos(tx.inputs, cfg)
+        let signed_by_admin = is_signed_by(tx.extra_signatories, cfg.admin)
+
+        and {
+          protocol_utxos_valid?,
+          all_vault_inputs_valid?,
+          signed_by_admin?,
         }
       }
       SpendBadUtxo { protocol_idxs, settings_idx, .. } -> {

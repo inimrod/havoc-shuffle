@@ -5,8 +5,8 @@ use cardano/address.{Script}
 use cardano/transaction.{OutputReference, Transaction}
 use helpers.{get_cfg}
 use types.{
-  CancelShuffle, LiveShuffle, ProtocolParams, ReShuffle, SettingsDatum,
-  SpendBadUtxo, UnifiedRedeemer,
+  Administer, CancelShuffle, LiveShuffle, ProtocolParams, ReShuffle,
+  SettingsDatum, SpendBadUtxo, UnifiedRedeemer,
 }
 
 validator vault(params: ProtocolParams) {
@@ -20,6 +20,7 @@ validator vault(params: ProtocolParams) {
       LiveShuffle { protocol_idxs, settings_idx, .. } |
       ReShuffle { protocol_idxs, settings_idx, .. } |
       CancelShuffle { protocol_idxs, settings_idx, .. } |
+      Administer { protocol_idxs, settings_idx } |
       SpendBadUtxo { protocol_idxs, settings_idx, .. } -> {
         // get config settings
         let cfg = get_cfg(tx.reference_inputs, settings_idx, params.cfg_policy)
