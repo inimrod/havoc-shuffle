@@ -1,6 +1,9 @@
 use protocol
 use test_constants as tc
-use types.{CancelShuffle, LiveShuffle, ReShuffle, RetireProtocol, SpendBadUtxo}
+use types.{
+  Administer, CancelShuffle, LiveShuffle, ReShuffle, RetireProtocol,
+  SpendBadUtxo,
+}
 
 test live_shuffle_succeed() {
   let redeemer =
@@ -110,6 +113,30 @@ test cancel_shuffle_fail() fail {
     redeemer,
     tc.protocol_output_ref,
     tc.test_bad_tx_cancel_shuffle,
+  )
+}
+
+test administer_succeed() {
+  let redeemer = Administer { protocol_idxs: (0, 0), settings_idx: 0 }
+  protocol.protocol.spend(
+    tc.protocol_params,
+    None,
+    redeemer,
+    tc.protocol_output_ref,
+    tc.test_tx_administer,
+  )
+}
+
+// fail point: input utxo from vault contract is not owned by the pool
+// (still owned by a user)
+test administer_fail() fail {
+  let redeemer = Administer { protocol_idxs: (0, 0), settings_idx: 0 }
+  protocol.protocol.spend(
+    tc.protocol_params,
+    None,
+    redeemer,
+    tc.protocol_output_ref,
+    tc.test_bad_tx_administer,
   )
 }
 

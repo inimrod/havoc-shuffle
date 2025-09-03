@@ -405,6 +405,22 @@ pub const test_tx_cancel_shuffle =
 pub const test_bad_tx_cancel_shuffle =
   Transaction { ..test_tx_cancel_shuffle, extra_signatories: [] }
 
+/// Administer Test Tx
+pub const test_tx_administer =
+  Transaction {
+    ..placeholder,
+    inputs: [protocol_input, vault_input_pool],
+    outputs: [protocol_output],
+    reference_inputs: [settings_input],
+    extra_signatories: [admin_key_hash],
+  }
+
+pub const test_bad_tx_administer =
+  Transaction {
+    ..test_tx_administer,
+    inputs: [protocol_input, vault_input_request],
+  }
+
 /// Vault SpendBadUtxo Test Tx
 pub const test_tx_spend_bad_utxo_vault =
   Transaction {
