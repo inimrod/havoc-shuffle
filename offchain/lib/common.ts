@@ -12,7 +12,7 @@ import {
     // unixTimeToSlot,
 } from "@lucid-evolution/lucid";
 
-export const provNetwork = (Deno.args[0] || "Preprod") as Network;
+export const provNetwork = (Deno.args[0] || "Custom") as Network;
 const kupoUrl = provNetwork == "Mainnet"
     ? Deno.env.get("DEMETER_MAINNET_KUPO") as string
     : Deno.env.get("DEMETER_PREPROD_KUPO") as string;
@@ -47,88 +47,139 @@ export enum CredentialType {
     key = "Key",
 }
 
-export type AssetClass = {
-    policy_id: string;
-    asset_name: string;
-};
+export const AssetClassSchema = Data.Object({
+    policy_id: Data.Bytes({ minLength: 0, maxLength: 28 }),
+    asset_name: Data.Bytes({ minLength: 0, maxLength: 64 }),
+});
 
-// ```aiken
-// pub type UnifiedRedeemer {
-//   MintBeaconToken
-//   BurnBeaconToken
-//   ReadSettings
-//   UpdateSettings
-//   LiveShuffle
-//   ReShuffle
-//   CancelShuffle
-//   Administer
-// }
-// ```
-export enum RedeemerType {
-    MintBeaconToken = "MintBeaconToken",
-    BurnBeaconToken = "BurnBeaconToken",
-    ReadSettings = "ReadSettings",
+export type AssetClass = Data.Static<typeof AssetClassSchema>;
+
+
+export enum RedeemerEnum {
+    MintSettingsBeacon = "MintSettingsBeacon",
+    BurnSettingsBeacon = "BurnSettingsBeacon",
     UpdateSettings = "UpdateSettings",
     LiveShuffle = "LiveShuffle",
     ReShuffle = "ReShuffle",
     CancelShuffle = "CancelShuffle",
     Administer = "Administer",
+    SpendBadUtxo = "SpendBadUtxo",
+    RetireProtocol = "RetireProtocol"
 }
 const UnifiedRedeemerSchema = Data.Enum([
-    Data.Literal(RedeemerType.MintBeaconToken),
-    Data.Literal(RedeemerType.BurnBeaconToken),
-    Data.Literal(RedeemerType.ReadSettings),
-    Data.Literal(RedeemerType.UpdateSettings),
-    Data.Literal(RedeemerType.LiveShuffle),
-    Data.Literal(RedeemerType.ReShuffle),
-    Data.Literal(RedeemerType.CancelShuffle),
-    Data.Literal(RedeemerType.Administer),
-]);
-export type UnifiedRedeemer = Data.Static<typeof UnifiedRedeemerSchema>;
-export const UnifiedRedeemer = UnifiedRedeemerSchema as unknown as UnifiedRedeemer;
+    Data.Object({
+        [RedeemerEnum.BurnSettingsBeacon]: Data.Object({
+            init_utxo_idx: Data.Integer()
+        }),
+    }),
 
-// Address schema
+    Data.Object({
+        [RedeemerEnum.MintSettingsBeacon]: Data.Object({
+            gcfg_utxo_idx: Data.Integer()
+        }),
+    }),
+
+    Data.Object({
+        [RedeemerEnum.UpdateSettings]: Data.Object({
+            input_idx: Data.Integer(),
+            output_idx: Data.Integer(),
+        }),
+    }),
+
+    Data.Object({
+        [RedeemerEnum.LiveShuffle]: Data.Object({
+            protocol_idxs: Data.Tuple([Data.Integer(), Data.Integer()]),
+            vault_idxs: Data.Tuple([Data.Integer(), Data.Integer()]),
+            user_idx: Data.Integer(),
+            ref_idxs: Data.Array(Data.Integer()),
+            settings_idx: Data.Integer(),
+        }),
+    }),
+
+    Data.Object({
+        [RedeemerEnum.ReShuffle]: Data.Object({
+            protocol_idxs: Data.Tuple([Data.Integer(), Data.Integer()]),
+            settings_idx: Data.Integer(),
+            request_idx: Data.Integer(),
+            pool_idxs: Data.Array(Data.Integer()),
+            pool_oidx: Data.Integer(),
+            user_idx: Data.Integer(),
+        }),
+    }),
+
+    Data.Object({
+        [RedeemerEnum.CancelShuffle]: Data.Object({
+            protocol_idxs: Data.Tuple([Data.Integer(), Data.Integer()]),
+            settings_idx: Data.Integer(),
+            request_idx: Data.Integer(),
+            user_idx: Data.Integer(),
+        }),
+    }),
+
+    Data.Object({
+        [RedeemerEnum.Administer]: Data.Object({
+            protocol_idxs: Data.Tuple([Data.Integer(), Data.Integer()]),
+            settings_idx: Data.Integer(),
+        }),
+    }),
+
+    Data.Object({
+        [RedeemerEnum.SpendBadUtxo]: Data.Object({
+            protocol_idxs: Data.Tuple([Data.Integer(), Data.Integer()]),
+            bad_utxo_idx: Data.Integer(),
+            settings_idx: Data.Integer(),
+        }),
+    }),
+
+    Data.Object({
+        [RedeemerEnum.RetireProtocol]: Data.Object({
+            protocol_idxs: Data.Integer(),
+            settings_idx: Data.Integer(),
+        }),
+    })
+]);
+export type UnifiedRedeemerType = Data.Static<typeof UnifiedRedeemerSchema>;
+export const UnifiedRedeemer = UnifiedRedeemerSchema as unknown as UnifiedRedeemerType;
+
+
+// Address type / schema
 export type PlutusVerificationKey = { VerificationKey: [string] };
 export type PlutusScriptKey = { Script: [string] };
 export type PlutusPaymentCred = PlutusVerificationKey | PlutusScriptKey;
 export type PlutusStakeCred = { Inline: [PlutusVerificationKey | PlutusScriptKey] } | {
     Pointer: { slot_number: bigint; transaction_index: bigint; certificate_index: bigint };
 } | null;
-export type AddressObj = {
-    payment_credential: PlutusPaymentCred;
-    stake_credential: PlutusStakeCred;
-};
-export const AddressSchema = Data.Object({
-    payment_credential: Data.Enum([
-        Data.Object({ VerificationKey: Data.Tuple([Data.Bytes()]) }),
-        Data.Object({ Script: Data.Tuple([Data.Bytes()]) }),
+
+export const CredSchema = Data.Enum([
+    Data.Object({ VerificationKey: Data.Tuple([Data.Bytes()]) }),
+    Data.Object({ Script: Data.Tuple([Data.Bytes()]) }),
+]);
+export const StakeCredSchema = Data.Nullable(
+    Data.Enum([
+        Data.Object({
+            Inline: Data.Tuple([CredSchema]),
+        }),
+        Data.Object({
+            Pointer: Data.Object({
+                slot_number: Data.Integer(),
+                transaction_index: Data.Integer(),
+                certificate_index: Data.Integer(),
+            }),
+        }),
     ]),
-    stake_credential: Data.Nullable(
-        Data.Enum([
-            Data.Object({
-                Inline: Data.Tuple([
-                    Data.Enum([
-                        Data.Object({ VerificationKey: Data.Tuple([Data.Bytes()]) }),
-                        Data.Object({ Script: Data.Tuple([Data.Bytes()]) }),
-                    ]),
-                ]),
-            }),
-            Data.Object({
-                Pointer: Data.Object({
-                    slot_number: Data.Integer(),
-                    transaction_index: Data.Integer(),
-                    certificate_index: Data.Integer(),
-                }),
-            }),
-        ]),
-    ),
+);
+export const AddressSchema = Data.Object({
+    payment_credential: CredSchema,
+    stake_credential: StakeCredSchema,
 });
+export type Address = Data.Static<typeof AddressSchema>;
 
 export const deployDetailsFile = `./data/deployed-${provNetwork.toLowerCase()}.json`;
 
+// create ./data dir if it doesn't exist
 try {
-    await Deno.lstat("./data");
-    // do nothing if dir already exists
+    await Deno.lstat("./data"); // do nothing if dir already exists
+    
 } catch (err) {
     if (!(err instanceof Deno.errors.NotFound)) {
         throw err;

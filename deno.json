@@ -12,7 +12,8 @@
         "mint-s2-mainnet": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/s2-token-mint.ts mainnet",
         "liveshuffle-req-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/liveshuffle.ts Preprod request",
         "liveshuffle-fulfill-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/liveshuffle.ts Preprod fulfill",
-        "cancel-shuffle-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/cancel-shuffle.ts Preprod"
+        "cancel-shuffle-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/cancel-shuffle.ts Preprod",
+        "get-contract-sizes": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/get-built-script-sizes.ts"
     },
     "imports": {
         "@lucid-evolution/lucid": "npm:@lucid-evolution/lucid@0.4.27",
@@ -23,5 +24,9 @@
         "lineWidth": 128,
         "indentWidth": 4,
         "semiColons": true
+    },
+    "packagers": {
+        "deno": "2.4.5",
+        "aiken": "v1.1.19"
     }
 }
