@@ -1,4 +1,5 @@
 export * from "./lib/common.ts";
+export * from "./lib/emulator.ts";
 export * from "./lib/helpers.ts";
 
 // onchain validators

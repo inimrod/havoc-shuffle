@@ -172,7 +172,7 @@ export const AddressSchema = Data.Object({
     payment_credential: CredSchema,
     stake_credential: StakeCredSchema,
 });
-export type Address = Data.Static<typeof AddressSchema>;
+export type AddressType = Data.Static<typeof AddressSchema>;
 
 export const deployDetailsFile = `./data/deployed-${provNetwork.toLowerCase()}.json`;
 
@@ -211,7 +211,9 @@ export const demoS2MintingScript = scriptFromNative({
 });
 export const demoS2PolicyId = mintingPolicyToId(demoS2MintingScript);
 
-export const s2PolicyId = provNetwork == "Mainnet" ? Deno.env.get("S2_POLICY_ID_MAINNET") as string : demoS2PolicyId;
+export const s2PolicyId = provNetwork == "Mainnet" 
+    ? Deno.env.get("S2_POLICY_ID_MAINNET") as string 
+    : demoS2PolicyId;
 
 export const prefix_100 = "000643b0";
 export const prefix_222 = "000de140";
@@ -235,3 +237,11 @@ export const refTokensValidatorHash = provNetwork == "Mainnet"
 export const refTokensValidatorAddr = provNetwork == "Mainnet" 
     ? Deno.env.get("HVC_S2_REFTOKENS_VAL_ADDR_MAINNET") as string 
     : Deno.env.get("HVC_S2_REFTOKENS_VAL_ADDR_PREPROD") as string;
+
+
+// validator params used by vault and protocol scripts
+export const ProtocolValParamsSchema = Data.Object({
+    cfg_policy: Data.Bytes({ minLength: 0, maxLength: 28 })
+});
+export type ProtocolValParamsType = Data.Static<typeof ProtocolValParamsSchema>;
+export const ProtocolValParams = ProtocolValParamsSchema as unknown as ProtocolValParamsType;

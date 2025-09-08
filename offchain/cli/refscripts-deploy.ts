@@ -6,6 +6,8 @@ import {
     deployed,
     // getDeployUtxos,
     getLucidInstance,
+    getEmulatorInstance,
+    emulator,
     protocolScript,
     protocolScriptAddr,
     provNetwork,
@@ -28,7 +30,7 @@ if (deployed && deployed.referenceUtxos) {
 }
 
 console.log(`Using network: ${provNetwork}`);
-const lucid = getLucidInstance();
+const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
 
 // These 2 txs are already combined here:
 // 1. mint beacon tokens for the refscripts
@@ -88,6 +90,13 @@ const txHash = await signedTx.submit();
 console.log(`tx submitted. Hash: ${txHash}`);
 console.log("");
 
+// Simulate the passage of time and block confirmations
+if (provNetwork == "Custom") {
+    await emulator.awaitBlock(10);
+    console.log("emulated passage of 10 blocks..");
+    console.log("");
+}
+
 const refscriptsRefUtxo: UTxO = derivedOutputs.find((utxo) => {
     if (utxo.assets[beaconTokens.refscripts]) return true;
     else return false;
@@ -128,3 +137,4 @@ const results = {
 const data = new TextEncoder().encode(stringify(results));
 Deno.writeFileSync(deployDetailsFile, data);
 console.log(`Results written to ${deployDetailsFile}`);
+console.log("");
