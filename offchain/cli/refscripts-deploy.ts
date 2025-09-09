@@ -1,25 +1,19 @@
 import {
-    // adminAddress,
     adminPkh,
     beaconTokens,
     deployDetailsFile,
     deployed,
-    // getDeployUtxos,
     getLucidInstance,
     getEmulatorInstance,
     emulator,
-    protocolScript,
-    protocolScriptAddr,
     provNetwork,
     refscriptsPolicyID,
     refscriptsRewardAddr,
     refscriptsScript,
     refscriptsScriptAddr,
-    settingsScript,
-    settingsScriptAddr,
-    vaultScript,
-    vaultScriptAddr,
-    vaultScriptRewardAddr,
+    buildSettingsScript,
+    buildVaultScript,
+    buildProtocolScript,
 } from "../index.ts";
 import { Data, stringify, UTxO } from "@lucid-evolution/lucid";
 
@@ -36,6 +30,14 @@ const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance
 // 1. mint beacon tokens for the refscripts
 // 2. deploy compiled refscripts into UTXOs with beacon tokens
 
+const initUtxo = (await lucid.wallet().getUtxos())[0];
+const settings = buildSettingsScript({
+    transaction_id: initUtxo.txHash,
+    output_index: BigInt(initUtxo.outputIndex)
+});
+const vault = buildVaultScript(settings.ScriptHash);
+const protocol = buildProtocolScript(settings.ScriptHash);
+
 const assetsToMint = {
     [beaconTokens.refscripts]: 1n,
     [beaconTokens.settings]: 1n,
@@ -46,7 +48,6 @@ const [_newWalletInputs, derivedOutputs, tx] = await lucid
     .newTx()
     .mintAssets(assetsToMint, Data.void())
     .register.Stake(refscriptsRewardAddr)
-    .register.Stake(vaultScriptRewardAddr)
     .pay.ToContract(
         refscriptsScriptAddr,
         { kind: "inline", value: Data.void() },
@@ -57,19 +58,19 @@ const [_newWalletInputs, derivedOutputs, tx] = await lucid
         refscriptsScriptAddr,
         { kind: "inline", value: Data.void() },
         { [beaconTokens.settings]: 1n },
-        settingsScript,
+        settings.Script,
     )
     .pay.ToContract(
         refscriptsScriptAddr,
         { kind: "inline", value: Data.void() },
         { [beaconTokens.vault]: 1n },
-        vaultScript,
+        vault.Script,
     )
     .pay.ToContract(
         refscriptsScriptAddr,
         { kind: "inline", value: Data.void() },
         { [beaconTokens.protocol]: 1n },
-        protocolScript,
+        protocol.Script,
     )
     .attach.Script(refscriptsScript)
     .addSignerKey(adminPkh)
@@ -128,9 +129,9 @@ const results = {
     referenceUtxos,
     refscriptsPolicyID,
     refscriptsScriptAddr,
-    settingsScriptAddr,
-    vaultScriptAddr,
-    protocolScriptAddr,
+    settingsScriptAddr: settings.ScriptAddr,
+    vaultScriptAddr: vault.ScriptAddr,
+    protocolScriptAddr: protocol.ScriptAddr,
     beaconTokens,
 };
 

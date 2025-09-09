@@ -5,7 +5,7 @@ import {
     makeSettingsDatum,
     protocolScriptAddr,
     protocolScriptHash,
-    RedeemerType,
+    RedeemerEnum,
     s2PolicyId,
     settingsBeaconTknName,
     SettingsDatumObj,
@@ -35,7 +35,7 @@ const cfgBeaconAsset = settingsPolicyID + settingsBeaconTknName;
 const assetsToMint = {
     [cfgBeaconAsset]: 1n,
 };
-const mintCfgBeacon: UnifiedRedeemer = RedeemerType.MintBeaconToken;
+const mintCfgBeacon: UnifiedRedeemer = RedeemerEnum.MintBeaconToken;
 const mintCfgBeaconRedeemer = Data.to(mintCfgBeacon, UnifiedRedeemer);
 
 const cfgDatumObj: SettingsDatumObj = {

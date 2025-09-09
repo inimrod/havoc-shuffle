@@ -174,6 +174,7 @@ export const AddressSchema = Data.Object({
 });
 export type AddressType = Data.Static<typeof AddressSchema>;
 
+
 export const deployDetailsFile = `./data/deployed-${provNetwork.toLowerCase()}.json`;
 
 // create ./data dir if it doesn't exist
@@ -245,3 +246,11 @@ export const ProtocolValParamsSchema = Data.Object({
 });
 export type ProtocolValParamsType = Data.Static<typeof ProtocolValParamsSchema>;
 export const ProtocolValParams = ProtocolValParamsSchema as unknown as ProtocolValParamsType;
+
+// OutputReference schema
+export const OutputRefSchema = Data.Object({
+    transaction_id: Data.Bytes({ minLength: 32, maxLength: 32 }),
+    output_index: Data.Integer(),
+});
+export type OutputReferenceType = Data.Static<typeof OutputRefSchema>;
+export const OutputReference = OutputRefSchema as unknown as OutputReferenceType;
