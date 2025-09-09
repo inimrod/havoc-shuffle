@@ -1,4 +1,4 @@
-import { UTxO } from "@lucid-evolution/lucid";
+import { UTxO, sortUTxOs, ScriptType } from "@lucid-evolution/lucid";
 import { beaconTokens } from "./refscripts.ts";
 
 const wantedRefUtxoTokens = [
@@ -46,4 +46,49 @@ export function getDeployUtxos(utxos: UTxO[], reserved?: UTxO): [UTxO[], Record<
     }
 
     return [deployUtxos, foundRefUtxoTokens];
+}
+
+
+
+
+
+export type StringifiedUtxo = {
+    txHash: string;
+    outputIndex: number;
+    assets: { [key: string]: string };
+    address: string;
+    datum?: string;
+    datumHash?: string;
+    scriptRef: {
+        type: ScriptType;
+        script: string;
+    }
+}
+export function getDeployedRefUtxos(rawList: StringifiedUtxo[]): UTxO[] {
+    return rawList.map((utxo: StringifiedUtxo) => parseStringifiedUtxo(utxo));
+}
+
+export function parseStringifiedUtxo(rawUtxo: StringifiedUtxo): UTxO {
+    const assets: { [key: string]: bigint } = {};
+        Object.entries(rawUtxo.assets).map(([assetId, amt]) => {
+            assets[assetId] = BigInt(parseInt(amt));
+        });
+    return {
+        txHash: rawUtxo.txHash,
+        outputIndex: rawUtxo.outputIndex,
+        assets: assets,
+        address: rawUtxo.address,
+        datum: rawUtxo.datum ?? undefined,
+        datumHash: rawUtxo.datumHash ?? undefined,
+        scriptRef: rawUtxo.scriptRef,
+    };
+}
+
+export function orderUtxosCanonically(utxos: UTxO[]) {
+    const sortedInputs = sortUTxOs(utxos, "Canonical");
+    const indicesMap: Map<string, bigint> = new Map();
+    sortedInputs.forEach((value, index) => {
+      indicesMap.set(value.txHash + value.outputIndex, BigInt(index));
+    });
+    return indicesMap;
 }

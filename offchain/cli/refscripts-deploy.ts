@@ -26,7 +26,7 @@ if (deployed && deployed.referenceUtxos) {
 console.log(`Using network: ${provNetwork}`);
 const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
 
-// These 2 txs are already combined here:
+// The following actions are already combined here:
 // 1. mint beacon tokens for the refscripts
 // 2. deploy compiled refscripts into UTXOs with beacon tokens
 

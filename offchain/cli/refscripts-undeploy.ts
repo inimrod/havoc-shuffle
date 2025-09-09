@@ -4,11 +4,12 @@ import {
     deployDetailsFile,
     deployed,
     getLucidInstance,
+    getEmulatorInstance,
     provNetwork,
+    emulator,
     refscriptsRewardAddr,
     refscriptsScript,
-    vaultScriptRewardAddr,
-    vaultScript
+    getDeployedRefUtxos,
 } from "../index.ts";
 import { Data, stringify } from "@lucid-evolution/lucid";
 
@@ -18,7 +19,7 @@ if (!deployed || !deployed.referenceUtxos) {
 }
 
 console.log(`Using network: ${provNetwork}`);
-const lucid = getLucidInstance();
+const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
 
 /*
 // De-register script stake hash
@@ -45,7 +46,9 @@ console.log(`tx submitted. Hash: ${tx0Hash}`);
 console.log("");
 */
 
-const refUtxos = await lucid.utxosAt(deployed.refscriptsScriptAddr);
+const refUtxos = provNetwork == "Custom" 
+    ? getDeployedRefUtxos(Object.values(deployed.referenceUtxos))
+    : await lucid.utxosAt(deployed.refscriptsScriptAddr);
 
 const assetsToBurn = {
     [beaconTokens.refscripts]: -1n,
@@ -59,9 +62,7 @@ const tx = await lucid
     .collectFrom(refUtxos, Data.void())
     .withdraw(refscriptsRewardAddr, 0n, Data.void())
     .deregister.Stake(refscriptsRewardAddr, Data.void())
-    .deregister.Stake(vaultScriptRewardAddr, Data.void())
     .attach.Script(refscriptsScript)
-    .attach.Script(vaultScript)
     .addSignerKey(adminPkh)
     .complete();
 console.log(`undeploy refscripts tx built`);
@@ -76,9 +77,18 @@ const txJson = JSON.parse(stringify(signedTx));
 console.log(`txFee: ${parseInt(txJson.body.fee) / 1_000_000} ADA`);
 console.log("");
 // Deno.exit(0);
-const txHash = await signedTx.submit();
-console.log(`tx submitted. Hash: ${txHash}`);
-console.log("");
+
+if (provNetwork == "Custom"){ // for emulator only
+    const txEval = await emulator.evaluateTx(signedTx.toCBOR(), refUtxos);
+    console.log("Tx Evaluation:", txEval);
+    console.log("");
+
+} else { // for real networks
+    const txHash = await signedTx.submit();
+    console.log(`tx submitted. Hash: ${txHash}`);
+    console.log("");
+}
+
 
 delete deployed.referenceUtxos;
 
