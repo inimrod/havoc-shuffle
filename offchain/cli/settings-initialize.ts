@@ -1,29 +1,36 @@
 import {
     adminPkh,
     deployed,
+    emulator,
+    provNetwork,
     getLucidInstance,
+    getEmulatorInstance,
     makeSettingsDatum,
-    protocolScriptAddr,
-    protocolScriptHash,
     RedeemerEnum,
+    UnifiedRedeemerType,
     s2PolicyId,
     settingsBeaconTknName,
-    SettingsDatumObj,
-    settingsPolicyID,
-    settingsScriptAddr,
+    SettingsDatumType,
     UnifiedRedeemer,
-    vaultScriptHash,
     refscriptsScriptHash,
     refTokensValidatorHash
 } from "../index.ts";
 import { Data, Datum, stringify } from "@lucid-evolution/lucid";
+import { prepInitUtxos, deployRescripts } from "./refscripts-deploy.ts"; 
+
+console.log(`Using network: ${provNetwork}`);
+const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
+
+// if using emulator, run deployRescripts() first
+if (provNetwork == "Custom") {
+    await prepInitUtxos();
+    await deployRescripts();
+}
 
 if (!deployed || !deployed.referenceUtxos) {
     console.log(`Reference UTXOs not yet deployed. Exiting...`);
     Deno.exit(0);
 }
-
-const lucid = getLucidInstance();
 
 const refUtxos = await lucid.utxosAt(deployed.refscriptsScriptAddr);
 const settingsRefUtxo = refUtxos.find((utxo) => {
@@ -31,18 +38,23 @@ const settingsRefUtxo = refUtxos.find((utxo) => {
     else return false;
 })!;
 
-const cfgBeaconAsset = settingsPolicyID + settingsBeaconTknName;
+const cfgBeaconAsset = deployed.settingsScriptHash + settingsBeaconTknName;
 const assetsToMint = {
     [cfgBeaconAsset]: 1n,
 };
-const mintCfgBeacon: UnifiedRedeemer = RedeemerEnum.MintBeaconToken;
+const mintCfgBeacon: UnifiedRedeemerType = {
+    [RedeemerEnum.MintSettingsBeacon]: {
+        init_utxo_idx: 0n
+    }
+}
 const mintCfgBeaconRedeemer = Data.to(mintCfgBeacon, UnifiedRedeemer);
 
-const cfgDatumObj: SettingsDatumObj = {
+const cfgDatumObj: SettingsDatumType = {
+    admin: adminPkh,
     refscripts: refscriptsScriptHash,
     reftokens: refTokensValidatorHash,
-    vault: vaultScriptHash,
-    protocol: protocolScriptHash,
+    vault: deployed.vaultScriptHash,
+    protocol: deployed.protocolScriptHash,
     s2_policy_id: s2PolicyId,
     max_to_shuffle: 5n,
 };
@@ -51,12 +63,12 @@ const tx = await lucid
     .newTx()
     .mintAssets(assetsToMint, mintCfgBeaconRedeemer)
     .pay.ToContract(
-        settingsScriptAddr,
+        deployed.settingsScriptAddr,
         { kind: "inline", value: cfgDatum as Datum },
         { [cfgBeaconAsset]: 1n },
     )
     .pay.ToContract(
-        protocolScriptAddr,
+        deployed.protocolScriptAddr,
         { kind: "inline", value: Data.void() },
     )
     .addSignerKey(adminPkh)
@@ -75,4 +87,12 @@ console.log("");
 
 // Deno.exit(0);
 const txHash = await signedTx.submit();
-console.log(`tx submitted. Hash: ${txHash}`);
+console.log(`Init settings tx submitted. Hash: ${txHash}`);
+console.log("");
+
+// Simulate the passage of time and block confirmations
+if (provNetwork == "Custom") {
+    await emulator.awaitBlock(10);
+    console.log("emulated passage of 10 blocks..");
+    console.log("");
+}

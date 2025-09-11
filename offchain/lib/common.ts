@@ -68,13 +68,13 @@ export enum RedeemerEnum {
 }
 const UnifiedRedeemerSchema = Data.Enum([
     Data.Object({
-        [RedeemerEnum.BurnSettingsBeacon]: Data.Object({
+        [RedeemerEnum.MintSettingsBeacon]: Data.Object({
             init_utxo_idx: Data.Integer()
         }),
     }),
 
     Data.Object({
-        [RedeemerEnum.MintSettingsBeacon]: Data.Object({
+        [RedeemerEnum.BurnSettingsBeacon]: Data.Object({
             gcfg_utxo_idx: Data.Integer()
         }),
     }),

@@ -26,7 +26,7 @@ export function buildSettingsScript(outputRef:OutputReferenceType) {
     }
 }
 
-export const settingsBeaconTknName = fromText(`CONFIG`);
+export const settingsBeaconTknName = fromText(`GCFG`);
 
 export const SettingsDatumSchema = Data.Object({
     admin: Data.Bytes({ minLength: 28, maxLength: 28 }),
@@ -37,7 +37,7 @@ export const SettingsDatumSchema = Data.Object({
     s2_policy_id: Data.Bytes({ minLength: 28, maxLength: 28 }),
     max_to_shuffle: Data.Integer(),
 });
-type SettingsDatumType = Data.Static<typeof SettingsDatumSchema>;
+export type SettingsDatumType = Data.Static<typeof SettingsDatumSchema>;
 export const SettingsDatum = SettingsDatumSchema as unknown as SettingsDatumType;
 
 export function makeSettingsDatum(obj: SettingsDatumType): Data {

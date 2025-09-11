@@ -6,45 +6,31 @@ import {
     getLucidInstance,
     getEmulatorInstance,
     provNetwork,
-    emulator,
+    // emulator,
+    // emuUserAcct,
     refscriptsRewardAddr,
     refscriptsScript,
-    getDeployedRefUtxos,
+    getDeployedRefUtxos,    
 } from "../index.ts";
+import { prepInitUtxos, deployRescripts } from "./refscripts-deploy.ts"; 
 import { Data, stringify } from "@lucid-evolution/lucid";
+
+
+console.log(`Using network: ${provNetwork}`);
+const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
+
+// if using emulator, run deployRescripts() first
+if (provNetwork == "Custom") {
+    await prepInitUtxos();
+    await deployRescripts();
+}
+
 
 if (!deployed || !deployed.referenceUtxos) {
     console.log(`Reference UTXOs not yet deployed. Exiting...`);
     Deno.exit(0);
 }
 
-console.log(`Using network: ${provNetwork}`);
-const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
-
-/*
-// De-register script stake hash
-const tx0 = await lucid
-    .newTx()
-    .deregister.Stake(refscriptsRewardAddr, Data.void())
-    .attach.Script(refscriptsScript)
-    .addSignerKey(adminPkh)
-    .complete();
-console.log(`register refscript stake addr tx built`);
-const signedTx0 = await tx0.sign.withWallet().complete();
-console.log(`signedTx0: ${stringify(signedTx0)}`);
-console.log(`signedTx0 hash: ${signedTx0.toHash()}`);
-console.log(`size: ~${signedTx0.toCBOR().length / 2048} KB`);
-console.log("");
-
-console.log("");
-const tx0Json = JSON.parse(stringify(signedTx0));
-console.log(`txFee: ${parseInt(tx0Json.body.fee) / 1_000_000} ADA`);
-console.log("");
-// Deno.exit(0);
-const tx0Hash = await signedTx0.submit();
-console.log(`tx submitted. Hash: ${tx0Hash}`);
-console.log("");
-*/
 
 const refUtxos = provNetwork == "Custom" 
     ? getDeployedRefUtxos(Object.values(deployed.referenceUtxos))
@@ -78,16 +64,20 @@ console.log(`txFee: ${parseInt(txJson.body.fee) / 1_000_000} ADA`);
 console.log("");
 // Deno.exit(0);
 
-if (provNetwork == "Custom"){ // for emulator only
-    const txEval = await emulator.evaluateTx(signedTx.toCBOR(), refUtxos);
-    console.log("Tx Evaluation:", txEval);
-    console.log("");
+const txHash = await signedTx.submit();
+console.log(`Undeploy tx submitted. Hash: ${txHash}`);
+console.log("");
 
-} else { // for real networks
-    const txHash = await signedTx.submit();
-    console.log(`tx submitted. Hash: ${txHash}`);
-    console.log("");
-}
+// if (provNetwork == "Custom"){ // for emulator only
+//     const txEval = await emulator.evaluateTx(signedTx.toCBOR(), refUtxos);
+//     console.log("Tx Evaluation:", txEval);
+//     console.log("");
+
+// } else { // for real networks
+//     const txHash = await signedTx.submit();
+//     console.log(`tx submitted. Hash: ${txHash}`);
+//     console.log("");
+// }
 
 
 delete deployed.referenceUtxos;

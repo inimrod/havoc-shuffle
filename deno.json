@@ -6,6 +6,7 @@
         "undeploy-emulate": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/refscripts-undeploy.ts Custom",
         "undeploy-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/refscripts-undeploy.ts Preprod",
         "undeploy-mainnet": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/refscripts-undeploy.ts Mainnet",
+        "init-settings-emulate": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/settings-initialize.ts Custom",
         "init-settings-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/settings-initialize.ts Preprod",
         "init-settings-mainnet": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/settings-initialize.ts Mainnet",
         "remove-settings-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/settings-remove.ts Preprod",
