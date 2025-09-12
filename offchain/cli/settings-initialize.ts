@@ -5,6 +5,7 @@ import {
     provNetwork,
     getLucidInstance,
     getEmulatorInstance,
+    deployDetailsFile,
     makeSettingsDatum,
     RedeemerEnum,
     UnifiedRedeemerType,
@@ -15,84 +16,105 @@ import {
     refscriptsScriptHash,
     refTokensValidatorHash
 } from "../index.ts";
-import { Data, Datum, stringify } from "@lucid-evolution/lucid";
+import { Data, Datum, UTxO, stringify } from "@lucid-evolution/lucid";
 import { prepInitUtxos, deployRescripts } from "./refscripts-deploy.ts"; 
 
 console.log(`Using network: ${provNetwork}`);
 const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
 
-// if using emulator, run deployRescripts() first
-if (provNetwork == "Custom") {
-    await prepInitUtxos();
-    await deployRescripts();
-}
+// if NOT using emulator, run initializeSettings() directly
+if (provNetwork !== "Custom") await initializeSettings();
 
-if (!deployed || !deployed.referenceUtxos) {
-    console.log(`Reference UTXOs not yet deployed. Exiting...`);
-    Deno.exit(0);
-}
 
-const refUtxos = await lucid.utxosAt(deployed.refscriptsScriptAddr);
-const settingsRefUtxo = refUtxos.find((utxo) => {
-    if (utxo.assets[deployed.beaconTokens.settings]) return true;
-    else return false;
-})!;
+export async function initializeSettings(){
 
-const cfgBeaconAsset = deployed.settingsScriptHash + settingsBeaconTknName;
-const assetsToMint = {
-    [cfgBeaconAsset]: 1n,
-};
-const mintCfgBeacon: UnifiedRedeemerType = {
-    [RedeemerEnum.MintSettingsBeacon]: {
-        init_utxo_idx: 0n
+    // if using emulator, run deployRescripts() first
+    if (provNetwork == "Custom") {
+        await prepInitUtxos();
+        await deployRescripts();
     }
-}
-const mintCfgBeaconRedeemer = Data.to(mintCfgBeacon, UnifiedRedeemer);
 
-const cfgDatumObj: SettingsDatumType = {
-    admin: adminPkh,
-    refscripts: refscriptsScriptHash,
-    reftokens: refTokensValidatorHash,
-    vault: deployed.vaultScriptHash,
-    protocol: deployed.protocolScriptHash,
-    s2_policy_id: s2PolicyId,
-    max_to_shuffle: 5n,
-};
-const cfgDatum = makeSettingsDatum(cfgDatumObj);
-const tx = await lucid
-    .newTx()
-    .mintAssets(assetsToMint, mintCfgBeaconRedeemer)
-    .pay.ToContract(
-        deployed.settingsScriptAddr,
-        { kind: "inline", value: cfgDatum as Datum },
-        { [cfgBeaconAsset]: 1n },
-    )
-    .pay.ToContract(
-        deployed.protocolScriptAddr,
-        { kind: "inline", value: Data.void() },
-    )
-    .addSignerKey(adminPkh)
-    .readFrom([settingsRefUtxo])
-    .complete();
+    
+    if (!deployed || !deployed.referenceUtxos) {
+        console.log(`Reference UTXOs not yet deployed. Exiting...`);
+        Deno.exit(0);
+    }
 
-const signedTx = await tx.sign.withWallet().complete();
-console.log(`signedTx: ${stringify(signedTx)}`);
-console.log(`signedTx hash: ${signedTx.toHash()}`);
-console.log(`size: ~${signedTx.toCBOR().length / 2048} KB`);
+    const refUtxos = await lucid.utxosAt(deployed.refscriptsScriptAddr);
+    const settingsRefUtxo = refUtxos.find((utxo) => {
+        if (utxo.assets[deployed.beaconTokens.settings]) return true;
+        else return false;
+    })!;
 
-console.log("");
-const txJson = JSON.parse(stringify(signedTx));
-console.log(`txFee: ${parseInt(txJson.body.fee) / 1_000_000} ADA`);
-console.log("");
+    const cfgBeaconAsset = deployed.settingsScriptHash + settingsBeaconTknName;
+    const assetsToMint = {
+        [cfgBeaconAsset]: 1n,
+    };
+    const mintCfgBeacon: UnifiedRedeemerType = {
+        [RedeemerEnum.MintSettingsBeacon]: {
+            init_utxo_idx: 0n
+        }
+    }
+    const mintCfgBeaconRedeemer = Data.to(mintCfgBeacon, UnifiedRedeemer);
 
-// Deno.exit(0);
-const txHash = await signedTx.submit();
-console.log(`Init settings tx submitted. Hash: ${txHash}`);
-console.log("");
+    const cfgDatumObj: SettingsDatumType = {
+        admin: adminPkh,
+        refscripts: refscriptsScriptHash,
+        reftokens: refTokensValidatorHash,
+        vault: deployed.vaultScriptHash,
+        protocol: deployed.protocolScriptHash,
+        s2_policy_id: s2PolicyId,
+        max_to_shuffle: 5n,
+    };
+    const cfgDatum = makeSettingsDatum(cfgDatumObj);
+    const [_newWalletInputs, derivedOutputs, tx] = await lucid
+        .newTx()
+        .collectFrom([deployed.settingsInitUtxo])
+        .mintAssets(assetsToMint, mintCfgBeaconRedeemer)
+        .pay.ToContract(
+            deployed.settingsScriptAddr,
+            { kind: "inline", value: cfgDatum as Datum },
+            { [cfgBeaconAsset]: 1n },
+        )
+        .pay.ToContract(
+            deployed.protocolScriptAddr,
+            { kind: "inline", value: Data.void() },
+        )
+        .addSignerKey(adminPkh)
+        .readFrom([settingsRefUtxo])
+        .chain();
+    const signedTx = await tx.sign.withWallet().complete();
+    console.log(`signedTx: ${stringify(signedTx)}`);
+    console.log(`signedTx hash: ${signedTx.toHash()}`);
+    console.log(`size: ~${signedTx.toCBOR().length / 2048} KB`);
 
-// Simulate the passage of time and block confirmations
-if (provNetwork == "Custom") {
-    await emulator.awaitBlock(10);
-    console.log("emulated passage of 10 blocks..");
+    console.log("");
+    const txJson = JSON.parse(stringify(signedTx));
+    console.log(`txFee: ${parseInt(txJson.body.fee) / 1_000_000} ADA`);
+    console.log("");
+
+    const txHash = await signedTx.submit();
+    console.log(`Init settings tx submitted. Hash: ${txHash}`);
+    console.log("");
+
+    // Simulate the passage of time and block confirmations
+    if (provNetwork == "Custom") {
+        await emulator.awaitBlock(10);
+        console.log("emulated passage of 10 blocks..");
+        console.log("");
+    }
+
+    const settingsUtxo: UTxO = derivedOutputs.find((utxo) => {
+        if (utxo.assets[cfgBeaconAsset]) return true;
+        else return false;
+    }) as UTxO;
+
+    // update the in-memory deployed details
+    deployed.settingsUtxo = settingsUtxo;
+
+    // update in-file deployed details
+    const data = new TextEncoder().encode(stringify(deployed));
+    Deno.writeFileSync(deployDetailsFile, data);
+    console.log(`Results written to ${deployDetailsFile}`);
     console.log("");
 }

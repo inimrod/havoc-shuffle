@@ -1,21 +1,31 @@
 import {
     adminPkh,
     deployed,
+    emulator,
+    provNetwork,
     getLucidInstance,
-    RedeemerType,
+    getEmulatorInstance,
+    RedeemerEnum,
     settingsBeaconTknName,
-    settingsPolicyID,
-    settingsScriptAddr,
+    UnifiedRedeemerType,
     UnifiedRedeemer,
 } from "../index.ts";
-import { Data, stringify } from "@lucid-evolution/lucid";
+import { Data, stringify, RedeemerBuilder } from "@lucid-evolution/lucid";
+import { initializeSettings } from "./settings-initialize.ts";
 
-if (!deployed || !deployed.referenceUtxos) {
+
+console.log(`Using network: ${provNetwork}`);
+const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
+
+// if using emulator, run initializeSettings() first
+if (provNetwork == "Custom") {
+    await initializeSettings();
+}
+
+if (!deployed || !deployed.referenceUtxos || !deployed.settingsUtxo) {
     console.log(`Reference UTXOs not yet deployed. Exiting...`);
     Deno.exit(0);
 }
-
-const lucid = getLucidInstance();
 
 // reference script
 const refUtxos = await lucid.utxosAt(deployed.refscriptsScriptAddr);
@@ -25,26 +35,50 @@ const settingsRefUtxo = refUtxos.find((utxo) => {
 })!;
 
 // settings utxo
-const settingsUtxos = await lucid.utxosAt(settingsScriptAddr);
+const cfgBeaconAsset = deployed.settingsScriptHash + settingsBeaconTknName;
+const settingsUtxos = await lucid.utxosAt(deployed.settingsScriptAddr);
 const settingsUtxo = settingsUtxos.find((utxo) => {
-    if (utxo.assets[settingsPolicyID + settingsBeaconTknName]) return true;
+    if (utxo.assets[cfgBeaconAsset]) return true;
     else return false;
 })!;
 
-const cfgBeaconAsset = settingsPolicyID + settingsBeaconTknName;
 const assetsToBurn = {
     [cfgBeaconAsset]: -1n,
 };
-const burnCfgBeacon: UnifiedRedeemer = RedeemerType.BurnBeaconToken;
-const burnCfgBeaconRedeemer = Data.to(burnCfgBeacon, UnifiedRedeemer);
 
-const updateCfg: UnifiedRedeemer = RedeemerType.UpdateSettings;
-const updateCfgRedeemer = Data.to(updateCfg, UnifiedRedeemer);
+// spend redeemer
+const spendRedeemer: RedeemerBuilder = {
+    kind: "selected",
+    inputs: [settingsUtxo],
+    makeRedeemer: (inputIdxs: bigint[]) => {
+        const redeemer: UnifiedRedeemerType = {
+            [RedeemerEnum.BurnSettingsBeacon]: {
+                gcfg_utxo_idx: inputIdxs[0]
+            },
+        };
+        return Data.to(redeemer, UnifiedRedeemer);
+    },
+};
+
+// burn redeemer
+const burnRedeemer: RedeemerBuilder = {
+    kind: "selected",
+    inputs: [settingsUtxo],
+    makeRedeemer: (inputIdxs: bigint[]) => {
+        const redeemer: UnifiedRedeemerType = {
+            [RedeemerEnum.BurnSettingsBeacon]: {
+                gcfg_utxo_idx: inputIdxs[0]
+            },
+        };
+        return Data.to(redeemer, UnifiedRedeemer);
+    },
+};
+
 
 const tx = await lucid
     .newTx()
-    .mintAssets(assetsToBurn, burnCfgBeaconRedeemer)
-    .collectFrom([settingsUtxo], updateCfgRedeemer)
+    .mintAssets(assetsToBurn, burnRedeemer)
+    .collectFrom([settingsUtxo], spendRedeemer)
     .addSignerKey(adminPkh)
     .readFrom([settingsRefUtxo])
     .complete();
@@ -61,4 +95,11 @@ console.log("");
 
 // Deno.exit(0);
 const txHash = await signedTx.submit();
-console.log(`tx submitted. Hash: ${txHash}`);
+console.log(`Remove settings tx submitted. Hash: ${txHash}`);
+
+// Simulate the passage of time and block confirmations
+if (provNetwork == "Custom") {
+    await emulator.awaitBlock(10);
+    console.log("emulated passage of 10 blocks..");
+    console.log("");
+}

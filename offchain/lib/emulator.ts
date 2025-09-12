@@ -2,7 +2,8 @@ import {
     Lucid,
     Assets,
     Emulator,
-    walletFromSeed
+    walletFromSeed,
+    ProtocolParameters,
 } from "@lucid-evolution/lucid";
 
 import { 
@@ -37,7 +38,10 @@ export const emuUserAcct = generateEmulatorAccountWithSeed(USER_WALLET_SEED, {
 });
 
 export const emulator = new Emulator([emuAdminAcct, emuUserAcct]);
-const emuLucid = await Lucid(emulator, "Custom");
+const lucidInit = await Lucid(emulator, "Custom");
+const protocolParams = lucidInit.config().protocolParameters as ProtocolParameters;
+protocolParams.maxTxSize = protocolParams.maxTxSize * 10;
+const emuLucid = await Lucid(emulator, "Custom", {presetProtocolParameters: protocolParams});
 
 // initial/default account for Emulator Lucid instance
 emuLucid.selectWallet.fromSeed(emuAdminAcct.seedPhrase);
