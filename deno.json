@@ -12,11 +12,14 @@
         "remove-settings-emulate": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/settings-remove.ts Custom",
         "remove-settings-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/settings-remove.ts Preprod",
         "remove-settings-mainnet": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/settings-remove.ts Mainnet",
+        "mint-s2-emulate": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/s2-token-mint.ts Custom",
         "mint-s2-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/s2-token-mint.ts Preprod",
         "mint-s2-mainnet": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/s2-token-mint.ts mainnet",
         "liveshuffle-req-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/liveshuffle.ts Preprod request",
         "liveshuffle-fulfill-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/liveshuffle.ts Preprod fulfill",
+        "liveshuffle-emulate": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/liveshuffle.ts Custom",
         "cancel-shuffle-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/cancel-shuffle.ts Preprod",
+        
         "get-contract-sizes": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/get-built-script-sizes.ts"
     },
     "imports": {

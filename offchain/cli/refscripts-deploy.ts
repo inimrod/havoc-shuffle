@@ -101,7 +101,7 @@ export async function deployRescripts(){
     console.log("");
     // Deno.exit(0);
     const txHash = await signedTx.submit();
-    console.log(`tx submitted. Hash: ${txHash}`);
+    console.log(`Refscripts deploy tx submitted. Hash: ${txHash}`);
     console.log("");
 
     // Simulate the passage of time and block confirmations

@@ -72,11 +72,14 @@ validator protocol(params: ProtocolParams) {
           validate_liveshuffle_ref_outputs(tx.outputs, ref_idxs, cfg)
 
         // restrict number of inputs and outputs
-        // inputs should only be 1 from protocol and 1 from vault contract
-        // outputs should only be 1 to protocol, 1 to vault, 1 to user, plus however many
-        // CIP68 reftoken outputs there are.
-        let inputs_count_valid = 2 == list.length(tx.inputs)
-        let expected_outputs_count = 3 + list.length(ref_idxs)
+        // inputs should only be 1 from protocol, 1 from vault contract, and 1 collateral input from admin/tx maker
+        // outputs should only be 1 to protocol, 1 to vault, 1 to user, 1 collateral output back to admin/tx maker,
+        // plus however many CIP68 reftoken outputs there are.
+        let vault_inputs_count = count_vault_inputs(tx.inputs, cfg)
+        let inputs_count_valid =
+          list.length(tx.inputs) == vault_inputs_count + 2
+        trace @"inputs count": list.length(tx.inputs)
+        let expected_outputs_count = 4 + list.length(ref_idxs)
         let outputs_count_valid =
           expected_outputs_count == list.length(tx.outputs)
 
@@ -141,8 +144,9 @@ validator protocol(params: ProtocolParams) {
 
         // make sure the tx only consumes the expected number of inputs from the vault contract
         // 1 request utxo + however many pool utxos are needed (specified in redeemer)
+        // +1 more collateral input from admin/tx maker
         let vault_inputs_count = count_vault_inputs(tx.inputs, cfg)
-        let expected_inputs_count = 1 + list.length(pool_idxs)
+        let expected_inputs_count = 2 + list.length(pool_idxs)
         let valid_inputs_count = expected_inputs_count == vault_inputs_count
 
         and {

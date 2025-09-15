@@ -1,57 +1,76 @@
 import {
-    adminAddress,
+    emulator,
     adminPkh,
-    adminSpendPkh,
-    beaconTokens,
+    provNetwork,
     demoS2MintingScript,
-    deployDetailsFile,
     deployed,
     getLucidInstance,
+    getEmulatorInstance,
     makeVaultDatum,
-    prefix_222,
-    protocolScriptAddr,
-    RedeemerType,
-    refscriptsScriptAddr,
-    s2PolicyId,
-    settingsBeaconTknName,
-    settingsPolicyID,
-    settingsScriptAddr,
+    settingsBeaconTknName,    
     testLiveShuffleNFTs,
     testS2NFTs,
+    RedeemerEnum,
     UnifiedRedeemer,
-    VaultDatumObj,
+    UnifiedRedeemerType,
+    VaultDatumType,
     VaultDatum,
-    vaultScriptAddr,
-    vaultScriptRewardAddr,
     refTokensValidatorAddr,
-    USER_WALLET_SEED
+    orderUtxosCanonically,
+    USER_WALLET_SEED,
+    ADMIN_WALLET_SEED
 } from "../index.ts";
-import { Data, Datum, fromText, stringify, getAddressDetails, Credential,
-    calculateMinLovelaceFromUTxO,
-    UTxO
+import { 
+    Data, 
+    Datum, 
+    stringify, 
+    getAddressDetails, 
+    Credential,
+    RedeemerBuilder,
  } from "@lucid-evolution/lucid";
+import { initializeSettings } from "./settings-initialize.ts";
 
-if (!deployed || !deployed.referenceUtxos) {
+
+console.log(`Using network: ${provNetwork}`);
+const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
+
+// if using emulator, run initializeSettings() first
+if (provNetwork == "Custom") {
+    await initializeSettings();
+}
+
+if (!deployed || !deployed.referenceUtxos || !deployed.settingsUtxo) {
     console.log(`Reference UTXOs not yet deployed. Exiting...`);
     Deno.exit(0);
 }
 
-const lucid = getLucidInstance();
+
+if (provNetwork == "Custom") { // for Emulator testing
+    await requestLiveShuffle();
+    await fulfillLiveShuffle();
+
+} else { // for live networks (preprod or mainnet)
+    // liveshuffle request tx:
+    if (Deno.args[1] == "request") await requestLiveShuffle();
+
+    // liveshuffle fulfill tx:
+    if (Deno.args[1] == "fulfill") await fulfillLiveShuffle();
+}
 
 
 
-// ------------------------
-// liveshuffle request tx:
-// ------------------------
-if (Deno.args[1] == "request") {
 
+
+
+
+export async function requestLiveShuffle(){
     // switch to user wallet:
     lucid.selectWallet.fromSeed(USER_WALLET_SEED);
     const userAddress = await lucid.wallet().address();
     const userPaymtCred = getAddressDetails(userAddress).paymentCredential as Credential;
     const userStakeCred = getAddressDetails(userAddress).stakeCredential as Credential;
     
-    const reqDatumObj: VaultDatumObj = {
+    const reqDatumObj: VaultDatumType = {
         owner: {
             payment_credential: { VerificationKey: [userPaymtCred.hash] },
             stake_credential: { Inline: [{ VerificationKey: [userStakeCred.hash] }] },
@@ -62,7 +81,7 @@ if (Deno.args[1] == "request") {
     const tx = await lucid
         .newTx()
         .pay.ToContract(
-            vaultScriptAddr,
+            deployed.vaultScriptAddr,
             { kind: "inline", value: reqDatum as Datum },
             {
                 "lovelace": 20_000_000n,
@@ -84,21 +103,27 @@ if (Deno.args[1] == "request") {
 
     // Deno.exit(0);
     const txHash = await signedTx.submit();
-    console.log(`tx submitted. Hash: ${txHash}`);
+    console.log(`Liveshuffle request tx submitted. Hash: ${txHash}`);
+
+    // Simulate the passage of time and block confirmations
+    if (provNetwork == "Custom") {
+        await emulator.awaitBlock(10);
+        console.log("emulated passage of 10 blocks..");
+        console.log("");
+    }
 }
 
+// To-do: refactor so that collateral will be returned to admin/tx maker
+// and also all the remaining lovelace from the request utxo will be returned to user
+export async function fulfillLiveShuffle(){
+    // switch to user wallet:
+    lucid.selectWallet.fromSeed(USER_WALLET_SEED);
+    const userAddress = await lucid.wallet().address();
 
+    // switch back to admin wallet:
+    lucid.selectWallet.fromSeed(ADMIN_WALLET_SEED);
 
-
-// ------------------------
-// liveshuffle fulfill tx:
-// ------------------------
-if (Deno.args[1] == "fulfill") {
     const refUtxos = await lucid.utxosAt(deployed.refscriptsScriptAddr);
-    const settingsRefUtxo = refUtxos.find((utxo) => {
-        if (utxo.assets[deployed.beaconTokens.settings]) return true;
-        else return false;
-    })!;
     const vaultRefUtxo = refUtxos.find((utxo) => {
         if (utxo.assets[deployed.beaconTokens.vault]) return true;
         else return false;
@@ -118,16 +143,35 @@ if (Deno.args[1] == "fulfill") {
 
     const settingsUtxos = await lucid.utxosAt(deployed.settingsScriptAddr);
     const settingsUtxo = settingsUtxos.find((utxo) => {
-        if (utxo.assets[settingsPolicyID + settingsBeaconTknName]) return true;
+        if (utxo.assets[deployed.settingsScriptHash + settingsBeaconTknName]) return true;
         else return false;
     })!;
-    const readSettings: UnifiedRedeemer = RedeemerType.ReadSettings;
-    const readSettingsRedeemer = Data.to(readSettings, UnifiedRedeemer);
 
     const protocolUtxos = await lucid.utxosAt(deployed.protocolScriptAddr);
     const protocolUtxo = protocolUtxos[0]; // pick 1, any will do
-    const liveShuffle: UnifiedRedeemer = RedeemerType.LiveShuffle;
-    const liveShuffleRedeemer = Data.to(liveShuffle, UnifiedRedeemer);
+
+    // organize reference inputs
+    const referenceInputs = [settingsUtxo, vaultRefUtxo, protocolRefUtxo];
+    const refInputsIdxs = orderUtxosCanonically(referenceInputs);
+    const settings_idx = refInputsIdxs.get(settingsUtxo.txHash + settingsUtxo.outputIndex)!;
+
+    // to-do: automate checking of qty for shuffling, and calculate correct indeces of cip68 ref outputs
+    const liveShuffleRedeemer: RedeemerBuilder = {
+        kind: "selected",
+        inputs: [protocolUtxo, requestUtxo],
+        makeRedeemer: (inputIdxs: bigint[]) => {
+            const redeemer: UnifiedRedeemerType = {
+                [RedeemerEnum.LiveShuffle]: {
+                    protocol_idxs: [inputIdxs[0], 0n],
+                    vault_idxs: [inputIdxs[1], 1n],
+                    user_idx: 2n,
+                    ref_idxs: [3n, 4n],
+                    settings_idx: settings_idx,
+                }
+            };
+            return Data.to(redeemer, UnifiedRedeemer);
+        },
+    };
 
     const assetsToMint = {
         [testLiveShuffleNFTs["HW S2 1069 Ref"]]: 1n,
@@ -135,27 +179,28 @@ if (Deno.args[1] == "fulfill") {
         [testLiveShuffleNFTs["HW S2 0069 Ref"]]: 1n,
         [testLiveShuffleNFTs["HW S2 0069 Usr"]]: 1n,
     };
-    
-
-    // test user acct: Daeda Testnet 1 0-00
-    const userAddress = "addr_test1qrpfe4qwyqn5pfsqa5r0j2jns7tgl46e88vz98frtfetvznss90saju9nsk990e9s5qw5r5dze3cgrfglcx9yxt5tv5sce9tga";
 
     const tx = await lucid
         .newTx()
-        .collectFrom([requestUtxo], Data.void())
-        .collectFrom([settingsUtxo], readSettingsRedeemer)
-        .collectFrom([protocolUtxo], liveShuffleRedeemer)
-        .withdraw(vaultScriptRewardAddr, 0n, Data.void())
+        .collectFrom([protocolUtxo, requestUtxo], liveShuffleRedeemer)
         .mintAssets(assetsToMint, Data.void())
-        .pay.ToContract( // return settings utxo
-            deployed.settingsScriptAddr,
-            { kind: "inline", value: settingsUtxo.datum as Datum },
-            settingsUtxo.assets,
-        )
         .pay.ToContract( // return protocol utxo
             deployed.protocolScriptAddr,
             { kind: "inline", value: protocolUtxo.datum as Datum },
             protocolUtxo.assets,
+        )
+        .pay.ToContract( // return contents of request utxo to vault
+            deployed.vaultScriptAddr,
+            undefined,
+            requestUtxo.assets,
+        )
+        .pay.ToAddress( // minted cip 68 user tokens, to user address
+            userAddress, 
+            {
+                "lovelace": 0n,
+                [testLiveShuffleNFTs["HW S2 1069 Usr"]]: 1n,
+                [testLiveShuffleNFTs["HW S2 0069 Usr"]]: 1n,
+            },
         )
         .pay.ToContract( // minted cip 68 ref token
             refTokensValidatorAddr,
@@ -170,19 +215,12 @@ if (Deno.args[1] == "fulfill") {
             {
                 [testLiveShuffleNFTs["HW S2 0069 Ref"]]: 1n,
             },
-        )
-        .pay.ToAddress(
-            userAddress, // minted cip 68 user tokens, to user address
-            {
-                "lovelace": 0n,
-                [testLiveShuffleNFTs["HW S2 1069 Usr"]]: 1n,
-                [testLiveShuffleNFTs["HW S2 0069 Usr"]]: 1n,
-            },
-        )
-        .readFrom([settingsRefUtxo, vaultRefUtxo, protocolRefUtxo])
+        )        
+        .readFrom(referenceInputs)
         .attach.Script(demoS2MintingScript)
         .addSignerKey(adminPkh) // added only for the minting nativescript reqt
-        .complete({changeAddress: vaultScriptAddr});
+        .complete();
+    console.log(`LiveShuffle fulfill tx built.`);
 
     const signedTx = await tx.sign.withWallet().complete();
     console.log(`signedTx: ${stringify(signedTx)}`);
@@ -196,5 +234,12 @@ if (Deno.args[1] == "fulfill") {
 
     // Deno.exit(0);
     const txHash = await signedTx.submit();
-    console.log(`tx submitted. Hash: ${txHash}`);
+    console.log(`LiveShuffle fulfill tx submitted. Hash: ${txHash}`);
+
+    // Simulate the passage of time and block confirmations
+    if (provNetwork == "Custom") {
+        await emulator.awaitBlock(10);
+        console.log("emulated passage of 10 blocks..");
+        console.log("");
+    }
 }
