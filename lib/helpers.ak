@@ -174,8 +174,8 @@ pub fn validate_reshuffle_user_output(
   }
 }
 
-/// Check that the live shuffle request utxo value is returned to the vault contract
-/// but this time, contains no datum anymore.
+/// Check that the tokens from the live shuffle request utxo value are returned to
+/// the vault contract but this time, contains no datum anymore.
 pub fn validate_liveshuffle_return_utxo(
   input: Input,
   output: Output,

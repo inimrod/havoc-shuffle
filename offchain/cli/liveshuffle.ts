@@ -21,12 +21,14 @@ import {
     USER_WALLET_SEED,
     ADMIN_WALLET_SEED
 } from "../index.ts";
-import { 
+import {
+    UTxO,
     Data, 
     Datum, 
     stringify, 
     getAddressDetails, 
     Credential,
+    TxSignBuilder,
     RedeemerBuilder,
  } from "@lucid-evolution/lucid";
 import { initializeSettings } from "./settings-initialize.ts";
@@ -114,8 +116,7 @@ export async function requestLiveShuffle(){
     }
 }
 
-// To-do: refactor so that collateral will be returned to admin/tx maker
-// and also all the remaining lovelace from the request utxo will be returned to user
+
 export async function fulfillLiveShuffle(){
     // switch to user wallet:
     lucid.selectWallet.fromSeed(USER_WALLET_SEED);
@@ -123,6 +124,10 @@ export async function fulfillLiveShuffle(){
 
     // switch back to admin wallet:
     lucid.selectWallet.fromSeed(ADMIN_WALLET_SEED);
+
+    // get collateral utxo from admin wallet:
+    const adminUtxos = await lucid.wallet().getUtxos();
+    const collateralUtxo = adminUtxos[0]; // just pick the first one
 
     const refUtxos = await lucid.utxosAt(deployed.refscriptsScriptAddr);
     const vaultRefUtxo = refUtxos.find((utxo) => {
@@ -146,6 +151,8 @@ export async function fulfillLiveShuffle(){
             (accum, [assetId, amt]) => assetId.startsWith(s2PolicyId) ? accum += amt : accum, 0n
         )
     );
+    const vaultAssetsToReturn = Object.assign({}, requestUtxo.assets); // copy of requestUtxo.assets;
+    delete vaultAssetsToReturn.lovelace; // lovelace from request utxo will be returned to the user
 
     const settingsUtxos = await lucid.utxosAt(deployed.settingsScriptAddr);
     const settingsUtxo = settingsUtxos.find((utxo) => {
@@ -161,9 +168,10 @@ export async function fulfillLiveShuffle(){
     const refInputsIdxs = orderUtxosCanonically(referenceInputs);
     const settings_idx = refInputsIdxs.get(settingsUtxo.txHash + settingsUtxo.outputIndex)!;
 
+    const inputUtxos = [protocolUtxo, requestUtxo, collateralUtxo];
     const liveShuffleRedeemer: RedeemerBuilder = {
         kind: "selected",
-        inputs: [protocolUtxo, requestUtxo],
+        inputs: inputUtxos,
         makeRedeemer: (inputIdxs: bigint[]) => {
             const redeemer: UnifiedRedeemerType = {
                 [RedeemerEnum.LiveShuffle]: {
@@ -185,56 +193,83 @@ export async function fulfillLiveShuffle(){
         [testLiveShuffleNFTs["HW S2 0069 Usr"]]: 1n,
     };
 
-    const tx = await lucid
-        .newTx()
-        .collectFrom([protocolUtxo, requestUtxo], liveShuffleRedeemer)
-        .mintAssets(assetsToMint, Data.void())
-        .pay.ToContract( // return protocol utxo
-            deployed.protocolScriptAddr,
-            { kind: "inline", value: protocolUtxo.datum as Datum },
-            protocolUtxo.assets,
-        )
-        .pay.ToContract( // return contents of request utxo to vault
-            deployed.vaultScriptAddr,
-            undefined,
-            requestUtxo.assets,
-        )
-        .pay.ToAddress( // minted cip 68 user tokens, to user address
-            userAddress, 
-            {
-                "lovelace": 0n,
-                [testLiveShuffleNFTs["HW S2 1069 Usr"]]: 1n,
-                [testLiveShuffleNFTs["HW S2 0069 Usr"]]: 1n,
-            },
-        )
-        .pay.ToContract( // minted cip 68 ref token
-            refTokensValidatorAddr,
-            { kind: "inline", value: Data.void() },
-            {
-                [testLiveShuffleNFTs["HW S2 1069 Ref"]]: 1n,
-            },
-        )
-        .pay.ToContract( // minted cip 68 ref token
-            refTokensValidatorAddr,
-            { kind: "inline", value: Data.void() },
-            {
-                [testLiveShuffleNFTs["HW S2 0069 Ref"]]: 1n,
-            },
-        )        
-        .readFrom(referenceInputs)
-        .attach.Script(demoS2MintingScript)
-        .addSignerKey(adminPkh) // added only for the minting nativescript reqt
-        .complete();
-    console.log(`LiveShuffle fulfill tx built.`);
+    async function buildLiveShuffleTx(userLovelace:bigint){
+        const [_newWalletInputs, derivedOutputs, tx] = await lucid
+            .newTx()
+            .collectFrom(inputUtxos, liveShuffleRedeemer)
+            .mintAssets(assetsToMint, Data.void())
+            .pay.ToContract( // return protocol utxo
+                deployed.protocolScriptAddr,
+                { kind: "inline", value: protocolUtxo.datum as Datum },
+                protocolUtxo.assets,
+            )
+            .pay.ToContract( // return tokens contained in request utxo to the vault
+                deployed.vaultScriptAddr,
+                undefined,
+                vaultAssetsToReturn,
+            )
+            .pay.ToAddress( // minted cip 68 user tokens, to user address
+                userAddress, 
+                {
+                    "lovelace": userLovelace,
+                    [testLiveShuffleNFTs["HW S2 1069 Usr"]]: 1n,
+                    [testLiveShuffleNFTs["HW S2 0069 Usr"]]: 1n,
+                },
+            )
+            .pay.ToContract( // minted cip 68 ref token
+                refTokensValidatorAddr,
+                { kind: "inline", value: Data.void() },
+                {
+                    [testLiveShuffleNFTs["HW S2 1069 Ref"]]: 1n,
+                },
+            )
+            .pay.ToContract( // minted cip 68 ref token
+                refTokensValidatorAddr,
+                { kind: "inline", value: Data.void() },
+                {
+                    [testLiveShuffleNFTs["HW S2 0069 Ref"]]: 1n,
+                },
+            )
+            .readFrom(referenceInputs)
+            .attach.Script(demoS2MintingScript)
+            .addSignerKey(adminPkh) // added only for the minting nativescript reqt
+            .chain();
 
-    const signedTx = await tx.sign.withWallet().complete();
+        return [tx, derivedOutputs] as [TxSignBuilder, UTxO[]];
+    }
+
+    const [draftTx, derivedOutputs]  = await buildLiveShuffleTx(0n);
+    console.log(`Draft liveShuffle fulfill tx built.`);
+    const draftTxJson = JSON.parse(stringify(draftTx));
+    const txFee = parseInt(draftTxJson.body.fee);
+    const vaultReturnUtxo: UTxO = derivedOutputs.find((utxo) => {
+        if (utxo.address == deployed.vaultScriptAddr) return true;
+        else return false;
+    }) as UTxO;
+    const vaultReturnLovelace = Number(vaultReturnUtxo.assets.lovelace);
+    const cip68RefUtxos: UTxO[] = derivedOutputs.filter((utxo) => {
+        if (utxo.address == refTokensValidatorAddr) return true;
+        else return false;
+    });
+    const cip68RefLovelace = cip68RefUtxos.reduce((accum, utxo) => accum + Number(utxo.assets.lovelace), 0);
+    const finalLovelaceToUser = BigInt(Number(requestUtxo.assets.lovelace) - vaultReturnLovelace - cip68RefLovelace - txFee);
+
+    const [finalTx, _derivedOutputs] = await buildLiveShuffleTx(finalLovelaceToUser);
+    console.log(`Final liveShuffle fulfill tx built, with ${finalLovelaceToUser} lovelace to user.`);
+
+    const signedTx = await finalTx.sign.withWallet().complete();
     console.log(`signedTx: ${stringify(signedTx)}`);
     console.log(`signedTx hash: ${signedTx.toHash()}`);
     console.log(`size: ~${signedTx.toCBOR().length / 2048} KB`);
 
     console.log("");
     const txJson = JSON.parse(stringify(signedTx));
+    console.log(`ADA in request: ${requestUtxo.assets.lovelace}`);
     console.log(`txFee: ${parseInt(txJson.body.fee) / 1_000_000} ADA`);
+    console.log(`txFee: ${txFee} lovelace`);
+    console.log(`vaultReturnLovelace: ${vaultReturnLovelace}`);
+    console.log(`cip68RefLovelace: ${cip68RefLovelace} (total)`);
+    console.log(`ADA in finalTx: ${finalLovelaceToUser}`);
     console.log("");
 
     // Deno.exit(0);
