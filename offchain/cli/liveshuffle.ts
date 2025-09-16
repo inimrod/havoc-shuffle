@@ -10,6 +10,7 @@ import {
     settingsBeaconTknName,    
     testLiveShuffleNFTs,
     testS2NFTs,
+    s2PolicyId,
     RedeemerEnum,
     UnifiedRedeemer,
     UnifiedRedeemerType,
@@ -140,6 +141,11 @@ export async function fulfillLiveShuffle(){
         if (datum.owner) return true;
         return false;
     })!;
+    const shuffleQty = Number(
+        Object.entries(requestUtxo.assets).reduce(
+            (accum, [assetId, amt]) => assetId.startsWith(s2PolicyId) ? accum += amt : accum, 0n
+        )
+    );
 
     const settingsUtxos = await lucid.utxosAt(deployed.settingsScriptAddr);
     const settingsUtxo = settingsUtxos.find((utxo) => {
@@ -155,7 +161,6 @@ export async function fulfillLiveShuffle(){
     const refInputsIdxs = orderUtxosCanonically(referenceInputs);
     const settings_idx = refInputsIdxs.get(settingsUtxo.txHash + settingsUtxo.outputIndex)!;
 
-    // to-do: automate checking of qty for shuffling, and calculate correct indeces of cip68 ref outputs
     const liveShuffleRedeemer: RedeemerBuilder = {
         kind: "selected",
         inputs: [protocolUtxo, requestUtxo],
@@ -165,7 +170,7 @@ export async function fulfillLiveShuffle(){
                     protocol_idxs: [inputIdxs[0], 0n],
                     vault_idxs: [inputIdxs[1], 1n],
                     user_idx: 2n,
-                    ref_idxs: [3n, 4n],
+                    ref_idxs: [...Array(shuffleQty).keys()].map(idx => BigInt(3 + idx)), // indeces of cip68 ref outputs, starting from 3n
                     settings_idx: settings_idx,
                 }
             };
