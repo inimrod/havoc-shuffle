@@ -26,10 +26,10 @@ import {
     Data, 
     Datum, 
     stringify, 
-    getAddressDetails, 
     Credential,
     TxSignBuilder,
     RedeemerBuilder,
+    getAddressDetails,
  } from "@lucid-evolution/lucid";
 import { initializeSettings } from "./settings-initialize.ts";
 
@@ -37,28 +37,37 @@ import { initializeSettings } from "./settings-initialize.ts";
 console.log(`Using network: ${provNetwork}`);
 const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
 
-// if using emulator, run initializeSettings() first
-if (provNetwork == "Custom") {
-    await initializeSettings();
+// run if this script is called directly from command line
+if (import.meta.main) {
+    console.log(`LiveShuffle cli script called directly from command line...`);
+    console.log("");
+
+    // if using emulator, run initializeSettings() first
+    if (provNetwork == "Custom") {
+        await initializeSettings();
+    }
+
+    if (!deployed || !deployed.referenceUtxos || !deployed.settingsUtxo) {
+        console.log(`Reference UTXOs not yet deployed. Exiting...`);
+        Deno.exit(0);
+    }
+
+    if (provNetwork == "Custom") { // for Emulator testing
+        await requestLiveShuffle();
+        await fulfillLiveShuffle();
+
+    } else { // for live networks (preprod or mainnet)
+        // liveshuffle request tx:
+        if (Deno.args[1] == "request") await requestLiveShuffle();
+
+        // liveshuffle fulfill tx:
+        if (Deno.args[1] == "fulfill") await fulfillLiveShuffle();
+    }
 }
 
-if (!deployed || !deployed.referenceUtxos || !deployed.settingsUtxo) {
-    console.log(`Reference UTXOs not yet deployed. Exiting...`);
-    Deno.exit(0);
-}
 
 
-if (provNetwork == "Custom") { // for Emulator testing
-    await requestLiveShuffle();
-    await fulfillLiveShuffle();
 
-} else { // for live networks (preprod or mainnet)
-    // liveshuffle request tx:
-    if (Deno.args[1] == "request") await requestLiveShuffle();
-
-    // liveshuffle fulfill tx:
-    if (Deno.args[1] == "fulfill") await fulfillLiveShuffle();
-}
 
 
 

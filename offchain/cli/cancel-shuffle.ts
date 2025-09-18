@@ -1,23 +1,46 @@
 import {
+    emulator,
     deployed,
-    getLucidInstance,
-    RedeemerType,
-    settingsBeaconTknName,
-    settingsPolicyID,
-    UnifiedRedeemer,
     VaultDatum,
-    vaultScriptRewardAddr,
-    
-    USER_WALLET_SEED
+    provNetwork,
+    RedeemerEnum,
+    UnifiedRedeemer,
+    getLucidInstance,
+    USER_WALLET_SEED,
+    getEmulatorInstance,
+    UnifiedRedeemerType,
+    orderUtxosCanonically,
+    settingsBeaconTknName    
 } from "../index.ts";
-import { Data, stringify, Datum, getAddressDetails, Credential } from "@lucid-evolution/lucid";
+import { 
+    Data,
+    Datum,
+    stringify,
+    Credential,
+    RedeemerBuilder,
+    getAddressDetails,
+} from "@lucid-evolution/lucid";
+import { initializeSettings } from "./settings-initialize.ts";
+import { requestLiveShuffle } from "./liveshuffle.ts";
+
+console.log(`Using network: ${provNetwork}`);
+const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
+
+// if using emulator, run initializeSettings() first
+if (provNetwork == "Custom") {
+    await initializeSettings();
+}
 
 if (!deployed || !deployed.referenceUtxos) {
     console.log(`Reference UTXOs not yet deployed. Exiting...`);
     Deno.exit(0);
 }
 
-const lucid = getLucidInstance();
+if (provNetwork == "Custom") { // for Emulator testing
+    await requestLiveShuffle();
+}
+
+
 
 // switch to user wallet:
 lucid.selectWallet.fromSeed(USER_WALLET_SEED);
@@ -26,10 +49,6 @@ const userPaymtCred = getAddressDetails(userAddress).paymentCredential as Creden
 
 // Reference scripts UTXOs
 const refUtxos = await lucid.utxosAt(deployed.refscriptsScriptAddr);
-const settingsRefUtxo = refUtxos.find((utxo) => {
-    if (utxo.assets[deployed.beaconTokens.settings]) return true;
-    else return false;
-})!;
 const vaultRefUtxo = refUtxos.find((utxo) => {
     if (utxo.assets[deployed.beaconTokens.vault]) return true;
     else return false;
@@ -54,49 +73,50 @@ console.log(`requestUtxo: ${stringify(requestUtxo)}`);
 // Settings contract UTXOs
 const settingsUtxos = await lucid.utxosAt(deployed.settingsScriptAddr);
 const settingsUtxo = settingsUtxos.find((utxo) => {
-    if (utxo.assets[settingsPolicyID + settingsBeaconTknName]) return true;
+    if (utxo.assets[deployed.settingsScriptHash + settingsBeaconTknName]) return true;
     else return false;
 })!;
-const readSettings: UnifiedRedeemer = RedeemerType.ReadSettings;
-const readSettingsRedeemer = Data.to(readSettings, UnifiedRedeemer);
 
 // Protocol contract UTXOs
 const protocolUtxos = await lucid.utxosAt(deployed.protocolScriptAddr);
 const protocolUtxo = protocolUtxos[0]; // pick 1, any will do
-const cancelShuffle: UnifiedRedeemer = RedeemerType.CancelShuffle;
-const cancelShuffleRedeemer = Data.to(cancelShuffle, UnifiedRedeemer);
 
-// extra user utxo:
-// const userInput = {
-//     txHash: "ae87e65fa0b71f938383aa299acdc739a1b9d296a6929df1588d62ca8b6f1b27",
-//     outputIndex: 2,
-//     address: userAddress,
-//     assets: { "lovelace": 115914319n }
-// }
+// organize reference inputs
+const referenceInputs = [settingsUtxo, vaultRefUtxo, protocolRefUtxo];
+const refInputsIdxs = orderUtxosCanonically(referenceInputs);
+const settings_idx = refInputsIdxs.get(settingsUtxo.txHash + settingsUtxo.outputIndex)!;
+
+const inputUtxos = [protocolUtxo, requestUtxo];
+const cancelShuffleRedeemer: RedeemerBuilder = {
+    kind: "selected",
+    inputs: inputUtxos,
+    makeRedeemer: (inputIdxs: bigint[]) => {
+        const redeemer: UnifiedRedeemerType = {
+            [RedeemerEnum.CancelShuffle]: {
+                protocol_idxs: [inputIdxs[0], 0n],
+                settings_idx: settings_idx,
+                request_idx: inputIdxs[1],
+                user_idx: 1n                
+            }
+        };
+        return Data.to(redeemer, UnifiedRedeemer);
+    },
+};
 
 const tx = await lucid
     .newTx()
-    .collectFrom([requestUtxo], Data.void())
-    .collectFrom([settingsUtxo], readSettingsRedeemer)
-    .collectFrom([protocolUtxo], cancelShuffleRedeemer)
-    // .collectFrom([userInput])
-    .withdraw(vaultScriptRewardAddr, 0n, Data.void())
-    .pay.ToContract( // return settings utxo
-        deployed.settingsScriptAddr,
-        { kind: "inline", value: settingsUtxo.datum as Datum },
-        settingsUtxo.assets,
-    )
+    .collectFrom(inputUtxos, cancelShuffleRedeemer)
     .pay.ToContract( // return protocol utxo
         deployed.protocolScriptAddr,
         { kind: "inline", value: protocolUtxo.datum as Datum },
         protocolUtxo.assets,
     )
-    // .pay.ToAddress( // return assets from request, back to user
-    //     userAddress, 
-    //     requestUtxo.assets
-    // )
+    .pay.ToAddress( // return assets from request, back to user
+        userAddress, 
+        requestUtxo.assets
+    )
     .addSignerKey(userPaymtCred.hash) // added to satisfy protocol reqt for CancelShuffle redeemer
-    .readFrom([settingsRefUtxo, vaultRefUtxo, protocolRefUtxo])
+    .readFrom(referenceInputs)
     .complete({changeAddress: userAddress});
 
 // sign by user:
@@ -112,4 +132,12 @@ console.log("");
 
 // Deno.exit(0);
 const txHash = await signedTx.submit();
-console.log(`tx submitted. Hash: ${txHash}`);
+console.log(`Cancel Shuffle tx submitted. Hash: ${txHash}`);
+
+
+// Simulate the passage of time and block confirmations
+if (provNetwork == "Custom") {
+    await emulator.awaitBlock(10);
+    console.log("emulated passage of 10 blocks..");
+    console.log("");
+}
