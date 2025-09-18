@@ -68,20 +68,17 @@ validator protocol(params: ProtocolParams) {
           validate_liveshuffle_user_output(tx.mint, owner, user_output, cfg)
 
         // validate cip68 ref token outputs
-        let valid_ref_outputs =
-          validate_liveshuffle_ref_outputs(tx.outputs, ref_idxs, cfg)
+        let valid_ref_outputs = and {
+            list.length(ref_idxs) == input_nfts_qty,
+            validate_liveshuffle_ref_outputs(tx.outputs, ref_idxs, cfg),
+          }
 
-        // restrict number of inputs and outputs
-        // inputs should only be 1 from protocol, 1 from vault contract, and 1 collateral input from admin/tx maker
-        // outputs should only be 1 to protocol, 1 to vault, 1 to user, 1 collateral output back to admin/tx maker,
-        // plus however many CIP68 reftoken outputs there are.
+        // restrict number of inputs from vault contract
+        // inputs should contain only 1 utxo from the vault contract
         let vault_inputs_count = count_vault_inputs(tx.inputs, cfg)
-        let inputs_count_valid =
-          list.length(tx.inputs) == vault_inputs_count + 2
+        let inputs_count_valid = vault_inputs_count == 1
+        trace @"vault_inputs_count count": vault_inputs_count
         trace @"inputs count": list.length(tx.inputs)
-        let expected_outputs_count = 4 + list.length(ref_idxs)
-        let outputs_count_valid =
-          expected_outputs_count == list.length(tx.outputs)
 
         and {
           protocol_utxos_valid?,
@@ -92,7 +89,6 @@ validator protocol(params: ProtocolParams) {
           valid_mint_recipient?,
           valid_ref_outputs?,
           inputs_count_valid?,
-          outputs_count_valid?,
         }
       }
       ReShuffle {
@@ -144,10 +140,9 @@ validator protocol(params: ProtocolParams) {
 
         // make sure the tx only consumes the expected number of inputs from the vault contract
         // 1 request utxo + however many pool utxos are needed (specified in redeemer)
-        // +1 more collateral input from admin/tx maker
         let vault_inputs_count = count_vault_inputs(tx.inputs, cfg)
-        let expected_inputs_count = 2 + list.length(pool_idxs)
-        let valid_inputs_count = expected_inputs_count == vault_inputs_count
+        let expected_vault_inputs = 1 + list.length(pool_idxs)
+        let valid_inputs_count = expected_vault_inputs == vault_inputs_count
 
         and {
           protocol_utxos_valid?,

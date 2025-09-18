@@ -124,6 +124,18 @@ pub const settings_init_utxo =
     },
   }
 
+// admin collateral utxo
+pub const admin_collateral_utxo =
+  Input {
+    output_reference: init_output_ref,
+    output: Output {
+      address: admin_address,
+      value: from_lovelace(1_000_000),
+      datum: NoDatum,
+      reference_script: None,
+    },
+  }
+
 // Protocol contract utxo
 pub const protocol_output_ref =
   OutputReference {
@@ -351,7 +363,7 @@ pub const test_tx_liveshuffle =
   Transaction {
     ..placeholder,
     mint: mint_s2_value,
-    inputs: [vault_input_request, protocol_input],
+    inputs: [vault_input_request, protocol_input, admin_collateral_utxo],
     outputs: [
       vault_output_pool, protocol_output, user_liveshuffle_output_from_mint,
       cip68_reftoken1_output, cip68_reftoken2_output,
@@ -372,7 +384,10 @@ pub const test_bad_tx_liveshuffle =
 pub const test_tx_reshuffle =
   Transaction {
     ..placeholder,
-    inputs: [protocol_input, vault_input_request, vault_reshuffle_input],
+    inputs: [
+      protocol_input, vault_input_request, vault_reshuffle_input,
+      admin_collateral_utxo,
+    ],
     outputs: [protocol_output, vault_reshuffle_output, user_reshuffle_output],
     reference_inputs: [settings_input],
   }
@@ -397,7 +412,7 @@ pub const test_tx_cancel_shuffle =
   Transaction {
     ..placeholder,
     inputs: [protocol_input, vault_input_request],
-    outputs: [protocol_output, vault_input_request.output],
+    outputs: [protocol_output, user_liveshuffle_io],
     reference_inputs: [settings_input],
     extra_signatories: [user_payment_keyhash],
   }
