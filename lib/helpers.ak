@@ -295,7 +295,9 @@ pub fn validate_cancel_shuffle_user_output(
         token_qty == token_qty_in_output
       },
     )
-  let address_valid = user_output.address == request_input.output.address
+  expect InlineDatum(inline_datum) = request_input.output.datum
+  expect vault_datum: VaultDatum = inline_datum
+  let address_valid = user_output.address == vault_datum.owner
   and {
     tokens_match?,
     address_valid?,
