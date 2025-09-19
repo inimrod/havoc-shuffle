@@ -17,18 +17,16 @@ import {
 } from "../index.ts";
 import { Data, stringify, UTxO } from "@lucid-evolution/lucid";
 
-// Avoid re-deploying if already done
-if (deployed && deployed.referenceUtxos) {
-    console.log(`Reference UTXOs already deployed. Exiting...`);
-    Deno.exit(0);
-}
-
 console.log(`Using network: ${provNetwork}`);
 const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
 
 // run if this script is called directly from command line
 if (import.meta.main) {
-    await prepInitUtxos();
+    if (deployed && deployed.referenceUtxos) { // Avoid re-deploying if already done
+        console.log(`Reference UTXOs already deployed. Exiting...`);
+        Deno.exit(0);
+    }
+    
     await deployRescripts();
 }
 
@@ -39,9 +37,10 @@ export async function deployRescripts(){
     // 1. mint beacon tokens for the refscripts
     // 2. deploy compiled refscripts into UTXOs with beacon tokens
 
-    const initUtxos = (await lucid.wallet().getUtxos());
+    const { initUtxos, newWalletInputs }  = await prepInitUtxos();
     const deployUtxo = initUtxos[0];
     const settingsInitUtxo = initUtxos[1];
+    lucid.overrideUTxOs(newWalletInputs);
 
     const settings = buildSettingsScript({
         transaction_id: settingsInitUtxo.txHash,
@@ -174,27 +173,46 @@ export async function deployRescripts(){
 
 
 export async function prepInitUtxos(){
-    // To be used in Emulator env only
-    // Get the deployer account's first UTXO and split it into 2 UTXOs.
+    // Prepare 2 initUtxos from deployer account
     // One will be used for deploying the reference scripts, and the other for initializing the settings.
 
-    if (provNetwork !== "Custom") {
-        console.log("prepInitUtxos() should only be called in Emulator env. Exiting...");
-        Deno.exit(0);
-    }
-
     const deployerAddr = await lucid.wallet().address();
-    const tx = await lucid
+    const [newWalletInputs, derivedOutputs, tx] = await lucid
         .newTx()
-        .pay.ToAddress(deployerAddr, { lovelace: 500_000_000n })
-        // the rest of the funds will go to the second UTXO as "change" output
-        .complete();    
-    const signedTx = await tx.sign.withWallet().complete();    
+        .pay.ToAddress(deployerAddr, { lovelace: 369_000_000n })
+        .pay.ToAddress(deployerAddr, { lovelace: 369_000_000n })
+        .pay.ToAddress(deployerAddr, { lovelace: 10_000_000n })
+        .attachMetadata(674, { msg: ["Havoc Shuffle init utxos prep"] })
+        .chain();
+    const signedTx = await tx.sign.withWallet().complete();
     const txHash = await signedTx.submit();
 
-    // Simulate the passage of time and block confirmations    
-    await emulator.awaitBlock(10);
+    // Simulate the passage of time and block confirmations
+    if (provNetwork == "Custom") {
+        await emulator.awaitBlock(10);
+        console.log("emulated passage of 10 blocks..");
+        console.log("");
+    }
+
+    const initUtxos: UTxO[] = derivedOutputs.filter((utxo) => {
+        if (utxo.address == deployerAddr && utxo.assets.lovelace == 369_000_000n) {
+            // remove this utxo from newWalletInputs
+            let idx = 0;
+            for (const input of newWalletInputs){
+                if (input.txHash == utxo.txHash && input.outputIndex == utxo.outputIndex){
+                    newWalletInputs.splice(idx, 1);
+                }
+                idx++;
+            }
+
+            // add this utxo to the initUtxos list
+            return true;
+        }
+        else return false;
+    }) as UTxO[];
     
-    console.log("First UTXO in deployer account has been split into 2. Hash:", txHash);
+    console.log("Init UTXOs in deployer account has been prepared. Hash:", txHash);
     console.log("");
+
+    return { initUtxos, newWalletInputs }
 }

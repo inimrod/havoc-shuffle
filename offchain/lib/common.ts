@@ -31,7 +31,7 @@ export const bfrostKey = provNetwork == "Preprod"
     : Deno.env.get("BFROST_MAINNET") as string;    
 export const providerBlockfrost = new Blockfrost(bfrostUrl, bfrostKey);
 
-const lucid = await Lucid(providerKupmios, provNetwork);
+const lucid = await Lucid(providerBlockfrost, provNetwork);
 export const ADMIN_WALLET_SEED = Deno.env.get("ADMIN_WALLET_SEED") as string;
 export const USER_WALLET_SEED = Deno.env.get("USER_WALLET_SEED") as string;
 
@@ -208,7 +208,7 @@ export const deployed = await (async () => {
         if (!(err instanceof Deno.errors.NotFound)) {
             throw err;
         }
-        return undefined;
+        return {}; // return empty object if file doesn't exist
     }
 })();
 
@@ -230,18 +230,18 @@ export const prefix_100 = "000643b0";
 export const prefix_222 = "000de140";
 
 export const testS2NFTs = [
-    `${s2PolicyId}${prefix_222}${fromText("HW S2 0999")}`,
-    `${s2PolicyId}${prefix_222}${fromText("HW S2 1000")}`,
+    `${s2PolicyId}${prefix_222}${fromText("HW S2 1001")}`,
+    `${s2PolicyId}${prefix_222}${fromText("HW S2 1002")}`,
 ]
 
 export const testLiveShuffleNFTs = [
     {
-        "ref": `${s2PolicyId}${prefix_100}${fromText("HW S2 1069")}`,
-        "usr": `${s2PolicyId}${prefix_222}${fromText("HW S2 1069")}`
+        "ref": `${s2PolicyId}${prefix_100}${fromText("HW S2 1070")}`,
+        "usr": `${s2PolicyId}${prefix_222}${fromText("HW S2 1070")}`
     },
     {
-        "ref": `${s2PolicyId}${prefix_100}${fromText("HW S2 0069")}`,
-        "usr": `${s2PolicyId}${prefix_222}${fromText("HW S2 0069")}`,
+        "ref": `${s2PolicyId}${prefix_100}${fromText("HW S2 1071")}`,
+        "usr": `${s2PolicyId}${prefix_222}${fromText("HW S2 1071")}`,
     }
 ];
 

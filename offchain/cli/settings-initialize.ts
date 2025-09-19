@@ -14,10 +14,11 @@ import {
     SettingsDatumType,
     UnifiedRedeemer,
     refscriptsScriptHash,
-    refTokensValidatorHash
+    refTokensValidatorHash,
+    parseStringifiedUtxo
 } from "../index.ts";
 import { Data, Datum, UTxO, stringify } from "@lucid-evolution/lucid";
-import { prepInitUtxos, deployRescripts } from "./refscripts-deploy.ts"; 
+import { deployRescripts } from "./refscripts-deploy.ts"; 
 
 console.log(`Using network: ${provNetwork}`);
 const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
@@ -32,7 +33,6 @@ export async function initializeSettings(){
 
     // if using emulator, run deployRescripts() first
     if (provNetwork == "Custom") {
-        await prepInitUtxos();
         await deployRescripts();
     }
 
@@ -41,6 +41,8 @@ export async function initializeSettings(){
         console.log(`Reference UTXOs not yet deployed. Exiting...`);
         Deno.exit(0);
     }
+
+    const settingsInitUtxo = parseStringifiedUtxo(deployed.settingsInitUtxo);
 
     const refUtxos = await lucid.utxosAt(deployed.refscriptsScriptAddr);
     const settingsRefUtxo = refUtxos.find((utxo) => {
@@ -71,7 +73,7 @@ export async function initializeSettings(){
     const cfgDatum = makeSettingsDatum(cfgDatumObj);
     const [_newWalletInputs, derivedOutputs, tx] = await lucid
         .newTx()
-        .collectFrom([deployed.settingsInitUtxo])
+        .collectFrom([settingsInitUtxo])
         .mintAssets(assetsToMint, mintCfgBeaconRedeemer)
         .pay.ToContract(
             deployed.settingsScriptAddr,

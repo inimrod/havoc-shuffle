@@ -12,7 +12,7 @@ import {
     refscriptsScript,
     getDeployedRefUtxos,    
 } from "../index.ts";
-import { prepInitUtxos, deployRescripts } from "./refscripts-deploy.ts"; 
+import { deployRescripts } from "./refscripts-deploy.ts"; 
 import { Data, stringify } from "@lucid-evolution/lucid";
 
 
@@ -21,7 +21,6 @@ const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance
 
 // if using emulator, run deployRescripts() first
 if (provNetwork == "Custom") {
-    await prepInitUtxos();
     await deployRescripts();
 }
 
