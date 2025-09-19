@@ -40,7 +40,7 @@ console.log("");
 
 // Deno.exit(0);
 const txHash = await signedTx.submit();
-console.log(`tx submitted. Hash: ${txHash}`);
+console.log(`Mint test S2 NFTs tx submitted. Hash: ${txHash}`);
 
 // Simulate the passage of time and block confirmations
 if (provNetwork == "Custom") {
