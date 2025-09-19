@@ -9,6 +9,7 @@ import {
     settingsBeaconTknName,
     UnifiedRedeemerType,
     UnifiedRedeemer,
+    parseStringifiedUtxo
 } from "../index.ts";
 import { Data, stringify, RedeemerBuilder } from "@lucid-evolution/lucid";
 import { initializeSettings } from "./settings-initialize.ts";
@@ -36,7 +37,9 @@ const settingsRefUtxo = refUtxos.find((utxo) => {
 
 // settings utxo
 const cfgBeaconAsset = deployed.settingsScriptHash + settingsBeaconTknName;
-const settingsUtxos = await lucid.utxosAt(deployed.settingsScriptAddr);
+const settingsUtxos = deployed.settingsUtxo
+    ? [parseStringifiedUtxo(deployed.settingsUtxo)]
+    : await lucid.utxosAt(deployed.settingsScriptAddr);
 const settingsUtxo = settingsUtxos.find((utxo) => {
     if (utxo.assets[cfgBeaconAsset]) return true;
     else return false;
