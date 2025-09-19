@@ -115,6 +115,7 @@ const tx = await lucid
         userAddress, 
         requestUtxo.assets
     )
+    .attachMetadata(674, { msg: ["Havoc Shuffle cancel shuffle request"] })
     .addSignerKey(userPaymtCred.hash) // added to satisfy protocol reqt for CancelShuffle redeemer
     .readFrom(referenceInputs)
     .complete({changeAddress: userAddress});

@@ -22,8 +22,10 @@ import { prepInitUtxos, deployRescripts } from "./refscripts-deploy.ts";
 console.log(`Using network: ${provNetwork}`);
 const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
 
-// if NOT using emulator, run initializeSettings() directly
-if (provNetwork !== "Custom") await initializeSettings();
+// run if this script is called directly from command line
+if (import.meta.main) {
+    await initializeSettings();
+}
 
 
 export async function initializeSettings(){
@@ -80,6 +82,7 @@ export async function initializeSettings(){
             deployed.protocolScriptAddr,
             { kind: "inline", value: Data.void() },
         )
+        .attachMetadata(674, { msg: ["Havoc Shuffle initialize settings"] })
         .addSignerKey(adminPkh)
         .readFrom([settingsRefUtxo])
         .chain();

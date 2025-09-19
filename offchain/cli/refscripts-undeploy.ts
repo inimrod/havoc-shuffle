@@ -48,6 +48,7 @@ const tx = await lucid
     .collectFrom(refUtxos, Data.void())
     .withdraw(refscriptsRewardAddr, 0n, Data.void())
     .deregister.Stake(refscriptsRewardAddr, Data.void())
+    .attachMetadata(674, { msg: ["Havoc Shuffle refscripts undeploy"] })
     .attach.Script(refscriptsScript)
     .addSignerKey(adminPkh)
     .complete();

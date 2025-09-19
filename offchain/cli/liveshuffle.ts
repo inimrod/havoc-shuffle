@@ -97,10 +97,11 @@ export async function requestLiveShuffle(){
             { kind: "inline", value: reqDatum as Datum },
             {
                 "lovelace": 20_000_000n,
-                [testS2NFTs["HW S2 0999"]]: 1n,
-                [testS2NFTs["HW S2 1000"]]: 1n,
+                [testS2NFTs[0]]: 1n,
+                [testS2NFTs[1]]: 1n,
             },
         )
+        .attachMetadata(674, { msg: ["Havoc Shuffle request live shuffle"] })
         .complete();
 
     const signedTx = await tx.sign.withWallet().complete();
@@ -196,10 +197,10 @@ export async function fulfillLiveShuffle(){
     };
 
     const assetsToMint = {
-        [testLiveShuffleNFTs["HW S2 1069 Ref"]]: 1n,
-        [testLiveShuffleNFTs["HW S2 1069 Usr"]]: 1n,
-        [testLiveShuffleNFTs["HW S2 0069 Ref"]]: 1n,
-        [testLiveShuffleNFTs["HW S2 0069 Usr"]]: 1n,
+        [testLiveShuffleNFTs[0].usr]: 1n,
+        [testLiveShuffleNFTs[1].usr]: 1n,
+        [testLiveShuffleNFTs[0].ref]: 1n,
+        [testLiveShuffleNFTs[1].ref]: 1n,
     };
 
     async function buildLiveShuffleTx(userLovelace:bigint){
@@ -221,24 +222,25 @@ export async function fulfillLiveShuffle(){
                 userAddress, 
                 {
                     "lovelace": userLovelace,
-                    [testLiveShuffleNFTs["HW S2 1069 Usr"]]: 1n,
-                    [testLiveShuffleNFTs["HW S2 0069 Usr"]]: 1n,
+                    [testLiveShuffleNFTs[0].usr]: 1n,
+                    [testLiveShuffleNFTs[1].usr]: 1n,
                 },
             )
             .pay.ToContract( // minted cip 68 ref token
                 refTokensValidatorAddr,
                 { kind: "inline", value: Data.void() },
                 {
-                    [testLiveShuffleNFTs["HW S2 1069 Ref"]]: 1n,
+                    [testLiveShuffleNFTs[0].ref]: 1n,
                 },
             )
             .pay.ToContract( // minted cip 68 ref token
                 refTokensValidatorAddr,
                 { kind: "inline", value: Data.void() },
                 {
-                    [testLiveShuffleNFTs["HW S2 0069 Ref"]]: 1n,
+                    [testLiveShuffleNFTs[1].ref]: 1n,
                 },
             )
+            .attachMetadata(674, { msg: ["Havoc Shuffle fulfill live shuffle"] })
             .readFrom(referenceInputs)
             .attach.Script(demoS2MintingScript)
             .addSignerKey(adminPkh) // added only for the minting nativescript reqt

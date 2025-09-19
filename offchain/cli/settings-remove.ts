@@ -79,6 +79,7 @@ const tx = await lucid
     .newTx()
     .mintAssets(assetsToBurn, burnRedeemer)
     .collectFrom([settingsUtxo], spendRedeemer)
+    .attachMetadata(674, { msg: ["Havoc Shuffle remove settings"] })
     .addSignerKey(adminPkh)
     .readFrom([settingsRefUtxo])
     .complete();

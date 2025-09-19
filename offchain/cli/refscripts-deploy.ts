@@ -26,9 +26,9 @@ if (deployed && deployed.referenceUtxos) {
 console.log(`Using network: ${provNetwork}`);
 const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
 
-if (provNetwork == "Custom") {
-    console.log("When using Lucid Emulator ('Custom' network), you need to import and call the function `deployRescripts()` from your main task script.");
-} else { 
+// run if this script is called directly from command line
+if (import.meta.main) {
+    await prepInitUtxos();
     await deployRescripts();
 }
 
@@ -85,6 +85,7 @@ export async function deployRescripts(){
             { [beaconTokens.protocol]: 1n },
             protocol.Script,
         )
+        .attachMetadata(674, { msg: ["Havoc Shuffle refscripts deploy"] })
         .attach.Script(refscriptsScript)
         .addSignerKey(adminPkh)
         .chain();
