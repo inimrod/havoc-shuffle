@@ -5,6 +5,7 @@ import {
     fromText,
     getAddressDetails,
     Kupmios,
+    Blockfrost,
     Lucid,
     mintingPolicyToId,
     Network,
@@ -20,6 +21,15 @@ const ogmiosUrl = provNetwork == "Mainnet"
     ? Deno.env.get("DEMETER_MAINNET_OGMIOS") as string
     : Deno.env.get("DEMETER_PREPROD_OGMIOS") as string;
 export const providerKupmios = new Kupmios(kupoUrl, ogmiosUrl);
+
+
+export const bfrostUrl = provNetwork == "Preprod"
+    ? "https://cardano-preprod.blockfrost.io/api/v0"
+    : "https://cardano-mainnet.blockfrost.io/api/v0";
+export const bfrostKey = provNetwork == "Preprod"
+    ? Deno.env.get("BFROST_PREPROD") as string
+    : Deno.env.get("BFROST_MAINNET") as string;    
+export const providerBlockfrost = new Blockfrost(bfrostUrl, bfrostKey);
 
 const lucid = await Lucid(providerKupmios, provNetwork);
 export const ADMIN_WALLET_SEED = Deno.env.get("ADMIN_WALLET_SEED") as string;
@@ -219,17 +229,21 @@ export const s2PolicyId = provNetwork == "Mainnet"
 export const prefix_100 = "000643b0";
 export const prefix_222 = "000de140";
 
-export const testS2NFTs = {
-    "HW S2 0999": `${s2PolicyId}${prefix_222}${fromText("HW S2 0999")}`,
-    "HW S2 1000": `${s2PolicyId}${prefix_222}${fromText("HW S2 1000")}`,
-};
+export const testS2NFTs = [
+    `${s2PolicyId}${prefix_222}${fromText("HW S2 0999")}`,
+    `${s2PolicyId}${prefix_222}${fromText("HW S2 1000")}`,
+]
 
-export const testLiveShuffleNFTs = {
-    "HW S2 1069 Ref": `${s2PolicyId}${prefix_100}${fromText("HW S2 1069")}`,
-    "HW S2 1069 Usr": `${s2PolicyId}${prefix_222}${fromText("HW S2 1069")}`,
-    "HW S2 0069 Ref": `${s2PolicyId}${prefix_100}${fromText("HW S2 0069")}`,
-    "HW S2 0069 Usr": `${s2PolicyId}${prefix_222}${fromText("HW S2 0069")}`,
-};
+export const testLiveShuffleNFTs = [
+    {
+        "ref": `${s2PolicyId}${prefix_100}${fromText("HW S2 1069")}`,
+        "usr": `${s2PolicyId}${prefix_222}${fromText("HW S2 1069")}`
+    },
+    {
+        "ref": `${s2PolicyId}${prefix_100}${fromText("HW S2 0069")}`,
+        "usr": `${s2PolicyId}${prefix_222}${fromText("HW S2 0069")}`,
+    }
+];
 
 export const refTokensValidatorHash = provNetwork == "Mainnet" 
     ? Deno.env.get("HVC_S2_REFTOKENS_VAL_HASH_MAINNET") as string 

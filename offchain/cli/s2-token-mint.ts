@@ -1,21 +1,25 @@
-import { adminPkh, demoS2MintingScript, deployed, getLucidInstance, provNetwork, testS2NFTs } from "../index.ts";
+import { 
+    adminPkh, 
+    demoS2MintingScript, 
+    emulator, 
+    getLucidInstance,
+    getEmulatorInstance,
+    provNetwork, 
+    testS2NFTs 
+} from "../index.ts";
 import { Data, stringify } from "@lucid-evolution/lucid";
 
-if (!deployed || !deployed.referenceUtxos) {
-    console.log(`Reference UTXOs not yet deployed. Exiting...`);
-    Deno.exit(0);
-}
-
+console.log(`Using network: ${provNetwork}`);
 if (provNetwork == "Mainnet") {
     console.log(`Can't mint like this on mainnet. Exiting...`);
     Deno.exit(0);
 }
 
-const lucid = getLucidInstance();
+const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
 
 const assetsToMint = {
-    [testS2NFTs["HW S2 0999"]]: 1n,
-    [testS2NFTs["HW S2 1000"]]: 1n,
+    [testS2NFTs[0]]: 1n,
+    [testS2NFTs[1]]: 1n,
 };
 const tx = await lucid
     .newTx()
@@ -37,3 +41,10 @@ console.log("");
 // Deno.exit(0);
 const txHash = await signedTx.submit();
 console.log(`tx submitted. Hash: ${txHash}`);
+
+// Simulate the passage of time and block confirmations
+if (provNetwork == "Custom") {
+    await emulator.awaitBlock(10);
+    console.log("emulated passage of 10 blocks..");
+    console.log("");
+}

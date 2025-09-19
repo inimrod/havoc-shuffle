@@ -33,8 +33,8 @@ export const emuAdminAcct = generateEmulatorAccountWithSeed(ADMIN_WALLET_SEED, {
 });
 export const emuUserAcct = generateEmulatorAccountWithSeed(USER_WALLET_SEED, {
   lovelace: 10_000_000_000n,
-  [testS2NFTs["HW S2 0999"]]: 1n,
-  [testS2NFTs["HW S2 1000"]]: 1n
+  [testS2NFTs[0]]: 1n,
+  [testS2NFTs[1]]: 1n
 });
 
 export const emulator = new Emulator([emuAdminAcct, emuUserAcct]);
