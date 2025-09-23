@@ -247,7 +247,22 @@ The protocol is mainly composed of 3 validators: `settings.ak`, `vault.ak`, and 
 1. ✅ Protocol :: CancelShuffle - `user_output_valid`: replace with a check for the returned assets, not really Value "match"
 1. ✅ Consider CIP68 ref tokens being sent to refscriptsAddr when classifying outputs for LiveShuffle
 1. ✅ Include refscriptsAddr in settings UTXO
-1. Use lucid's redeemer builder for settings and protocol utxo validation
+1. ✅ Use lucid's redeemer builder for settings and protocol utxo validation
+
+## Winding Down:
+
+1. Spend the utxo locked in the protocol contract:
+   ```
+   deno task retire-protocol-[emulate|preprod|mainnet]
+   ```
+1. Spend the utxo locked in the settings contract:
+   ```
+   deno task remove-settings-[emulate|preprod|mainnet]
+   ```
+1. Undeploy reference scripts:
+   ```
+   deno task undeploy-[emulate|preprod|mainnet]
+   ```
 
 ## Random Notes:
 

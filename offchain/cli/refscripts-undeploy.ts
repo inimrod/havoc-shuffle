@@ -68,18 +68,6 @@ const txHash = await signedTx.submit();
 console.log(`Undeploy tx submitted. Hash: ${txHash}`);
 console.log("");
 
-// if (provNetwork == "Custom"){ // for emulator only
-//     const txEval = await emulator.evaluateTx(signedTx.toCBOR(), refUtxos);
-//     console.log("Tx Evaluation:", txEval);
-//     console.log("");
-
-// } else { // for real networks
-//     const txHash = await signedTx.submit();
-//     console.log(`tx submitted. Hash: ${txHash}`);
-//     console.log("");
-// }
-
-
 delete deployed.referenceUtxos;
 
 const data = new TextEncoder().encode(stringify(deployed));

@@ -3,9 +3,10 @@ import {
     deployed,
     emulator,
     provNetwork,
+    RedeemerEnum,
+    deployDetailsFile,
     getLucidInstance,
     getEmulatorInstance,
-    RedeemerEnum,
     settingsBeaconTknName,
     UnifiedRedeemerType,
     UnifiedRedeemer,
@@ -107,3 +108,9 @@ if (provNetwork == "Custom") {
     console.log("emulated passage of 10 blocks..");
     console.log("");
 }
+
+
+delete deployed.settingsUtxo;
+const data = new TextEncoder().encode(stringify(deployed));
+Deno.writeFileSync(deployDetailsFile, data);
+console.log(`Updated ${deployDetailsFile}`);

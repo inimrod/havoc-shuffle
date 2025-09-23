@@ -31,7 +31,10 @@ export const bfrostKey = provNetwork == "Preprod"
     : Deno.env.get("BFROST_MAINNET") as string;    
 export const providerBlockfrost = new Blockfrost(bfrostUrl, bfrostKey);
 
-const lucid = await Lucid(providerBlockfrost, provNetwork);
+const lucid = provNetwork == "Custom" 
+    ? await Lucid(providerKupmios, provNetwork) 
+    : await Lucid(providerBlockfrost, provNetwork);
+    
 export const ADMIN_WALLET_SEED = Deno.env.get("ADMIN_WALLET_SEED") as string;
 export const USER_WALLET_SEED = Deno.env.get("USER_WALLET_SEED") as string;
 
@@ -143,7 +146,7 @@ const UnifiedRedeemerSchema = Data.Enum([
 
     Data.Object({
         [RedeemerEnum.RetireProtocol]: Data.Object({
-            protocol_idxs: Data.Integer(),
+            protocol_idx: Data.Integer(),
             settings_idx: Data.Integer(),
         }),
     })

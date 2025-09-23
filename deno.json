@@ -23,6 +23,9 @@
         "administer-emulate": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/administer.ts Custom",
         "administer-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/administer.ts Preprod",
         "administer-mainnet": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/administer.ts Mainnet",
+        "retire-protocol-emulate": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/retire-protocol.ts Custom",
+        "retire-protocol-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/retire-protocol.ts Preprod",
+        "retire-protocol-mainnet": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/retire-protocol.ts Mainnet",
         "get-contract-sizes": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/get-built-script-sizes.ts"
     },
     "imports": {
