@@ -20,6 +20,9 @@
         "liveshuffle-fulfill-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/liveshuffle.ts Preprod fulfill",
         "cancel-shuffle-emulate": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/cancel-shuffle.ts Custom",
         "cancel-shuffle-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/cancel-shuffle.ts Preprod",
+        "administer-emulate": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/administer.ts Custom",
+        "administer-preprod": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/administer.ts Preprod",
+        "administer-mainnet": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/administer.ts Mainnet",
         "get-contract-sizes": "deno run --allow-net --allow-env --env --allow-read --allow-write --allow-ffi offchain/cli/get-built-script-sizes.ts"
     },
     "imports": {
