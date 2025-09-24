@@ -177,11 +177,14 @@ export async function prepInitUtxos(){
     // One will be used for deploying the reference scripts, and the other for initializing the settings.
 
     const deployerAddr = await lucid.wallet().address();
+    const deployerUtxos = await lucid.utxosAt(deployerAddr);
+    lucid.overrideUTxOs(deployerUtxos);
+
     const [newWalletInputs, derivedOutputs, tx] = await lucid
         .newTx()
-        .pay.ToAddress(deployerAddr, { lovelace: 369_000_000n })
-        .pay.ToAddress(deployerAddr, { lovelace: 369_000_000n })
-        .pay.ToAddress(deployerAddr, { lovelace: 10_000_000n })
+        .pay.ToAddress(deployerAddr, { lovelace: 100_000_000n })
+        .pay.ToAddress(deployerAddr, { lovelace: 100_000_000n })
+        .pay.ToAddress(deployerAddr, { lovelace: 50_000_000n })
         .attachMetadata(674, { msg: ["Havoc Shuffle init utxos prep"] })
         .chain();
     const signedTx = await tx.sign.withWallet().complete();
@@ -195,7 +198,7 @@ export async function prepInitUtxos(){
     }
 
     const initUtxos: UTxO[] = derivedOutputs.filter((utxo) => {
-        if (utxo.address == deployerAddr && utxo.assets.lovelace == 369_000_000n) {
+        if (utxo.address == deployerAddr && utxo.assets.lovelace == 100_000_000n) {
             // remove this utxo from newWalletInputs
             let idx = 0;
             for (const input of newWalletInputs){
