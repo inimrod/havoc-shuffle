@@ -1,21 +1,19 @@
 import { 
     adminPkh, 
-    demoS2MintingScript, 
-    emulator, 
     getLucidInstance,
-    getEmulatorInstance,
     provNetwork, 
-    testS2NFTs 
+    testS2NFTs,
+    s2MintPolicyRefUtxo
 } from "../index.ts";
 import { Data, stringify } from "@lucid-evolution/lucid";
 
 console.log(`Using network: ${provNetwork}`);
-if (provNetwork == "Mainnet") {
-    console.log(`Can't mint like this on mainnet. Exiting...`);
+if (provNetwork == "Mainnet" || provNetwork == "Custom") {
+    console.log(`Can't mint like this on ${provNetwork}. Exiting...`);
     Deno.exit(0);
 }
 
-const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
+const lucid = getLucidInstance();
 
 const assetsToMint = {
     [testS2NFTs[0]]: 1n,
@@ -25,7 +23,8 @@ const tx = await lucid
     .newTx()
     .mintAssets(assetsToMint, Data.void())
     .addSignerKey(adminPkh)
-    .attach.Script(demoS2MintingScript)
+    .attachMetadata(674, { msg: ["Havoc Shuffle test mint s2 nfts"] })
+    .readFrom([s2MintPolicyRefUtxo.preprod])
     .complete();
 
 const signedTx = await tx.sign.withWallet().complete();
@@ -41,10 +40,3 @@ console.log("");
 // Deno.exit(0);
 const txHash = await signedTx.submit();
 console.log(`Mint test S2 NFTs tx submitted. Hash: ${txHash}`);
-
-// Simulate the passage of time and block confirmations
-if (provNetwork == "Custom") {
-    await emulator.awaitBlock(10);
-    console.log("emulated passage of 10 blocks..");
-    console.log("");
-}
