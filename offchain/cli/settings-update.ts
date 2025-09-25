@@ -15,7 +15,7 @@ import {
     refscriptsScriptHash,
     parseStringifiedUtxo,
     settingsBeaconTknName,    
-    refTokensValidatorHash    
+    refTokensValidatorHash
 } from "../index.ts";
 import { Data, Datum, UTxO, stringify, RedeemerBuilder } from "@lucid-evolution/lucid";
 import { initializeSettings } from "./settings-initialize.ts";
@@ -59,7 +59,7 @@ const cfgDatumObj: SettingsDatumType = {
     vault: deployed.vaultScriptHash,
     protocol: deployed.protocolScriptHash,
     s2_policy_id: s2PolicyId,
-    max_to_shuffle: 4n,
+    max_to_shuffle: 5n,
 };
 const cfgDatum = makeSettingsDatum(cfgDatumObj);
 

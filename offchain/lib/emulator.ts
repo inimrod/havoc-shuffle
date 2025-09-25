@@ -31,11 +31,11 @@ export function generateEmulatorAccountWithSeed(seed: string, assets?: Assets) {
 export const emuAdminAcct = generateEmulatorAccountWithSeed(ADMIN_WALLET_SEED, {
   lovelace: 10_000_000_000n, // 10,000 ADA
 });
-export const emuUserAcct = generateEmulatorAccountWithSeed(USER_WALLET_SEED, {
-  lovelace: 10_000_000_000n,
-  [testS2NFTs[0]]: 1n,
-  [testS2NFTs[1]]: 1n
-});
+const emulatorUserAssets: Record<string, bigint> = { lovelace: 10_000_000_000n };
+for (const nft of testS2NFTs){
+    emulatorUserAssets[nft] = 1n;
+}
+export const emuUserAcct = generateEmulatorAccountWithSeed(USER_WALLET_SEED, emulatorUserAssets);
 
 export const emulator = new Emulator([emuAdminAcct, emuUserAcct]);
 const lucidInit = await Lucid(emulator, "Custom");
