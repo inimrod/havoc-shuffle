@@ -8,8 +8,10 @@ import {
     Blockfrost,
     Lucid,
     mintingPolicyToId,
+    UTxO,
+    Script,
     Network,
-    scriptFromNative,
+    // scriptFromNative,
     // unixTimeToSlot,
 } from "@lucid-evolution/lucid";
 
@@ -215,26 +217,54 @@ export const deployed = await (async () => {
     }
 })();
 
-// For preprod testing:
-export const demoS2MintingScript = scriptFromNative({
-    type: "all",
-    scripts: [
-        { type: "sig", keyHash: adminPkh },
-        // { type: "after", slot: unixTimeToSlot(lucid.config().network as Network, 0) },
-    ],
-});
-export const demoS2PolicyId = mintingPolicyToId(demoS2MintingScript);
+export const s2MintingScript: Record<string, Script> = {
+    custom: {
+        type: "PlutusV2",
+        script: "59017a01000032323232323232323232323232323232323232323232323232323232323232225333573466006900018100008a4c2603e9211976616c69646174696f6e2072657475726e65642066616c736500223301d13301b003480004cc060cc024c01c0040112401117369676e65642062792061646d696e3a200048008c0053011e581c611f527762bdcb19a2156a0039fac9e6ee2253481aebb214bb9433250000175c00246ae84c03400488c8cc03cc01000c8cdd7800801180780091bac3002001235742600400246ae88c0080048d5d1180100091aba23002001235744600400246ae88c0080048d5d1180100091aba23002001235744600400246aae78dd500091191998008008018011112999aab9f00214a02a666ae68c004d5d08010a51133300300335744004002002ea488cd5ce19802000a980180100110999ab9a00149104747275650049010566616c73650072c44600666e240080048ccd5cd000a504a244a666ae694008540045281299ab9c00116001200101",        
+    },
+    preprod: {
+        type: "PlutusV2",
+        script: "59017a01000032323232323232323232323232323232323232323232323232323232323232225333573466006900018100008a4c2603e9211976616c69646174696f6e2072657475726e65642066616c736500223301d13301b003480004cc060cc024c01c0040112401117369676e65642062792061646d696e3a200048008c0053011e581c611f527762bdcb19a2156a0039fac9e6ee2253481aebb214bb9433250000175c00246ae84c03400488c8cc03cc01000c8cdd7800801180780091bac3002001235742600400246ae88c0080048d5d1180100091aba23002001235744600400246ae88c0080048d5d1180100091aba23002001235744600400246aae78dd500091191998008008018011112999aab9f00214a02a666ae68c004d5d08010a51133300300335744004002002ea488cd5ce19802000a980180100110999ab9a00149104747275650049010566616c73650072c44600666e240080048ccd5cd000a504a244a666ae694008540045281299ab9c00116001200101",        
+    },
+    mainnet: {
+        "type": "PlutusV2",
+        "script": "5882010000225333573466446464666002002004466ebc004dd48021112999aab9f00214a02a666ae68c004d5d08010a511333003003357440040026eb0d5d09aba2357446ae88d5d11aba2357446ae88d5d11aab9e37540046ae84d55cf1baa0014891c611f527762bdcb19a2156a0039fac9e6ee2253481aebb214bb94332500149859"
+    }
+};
+export const s2PolicyId = mintingPolicyToId(s2MintingScript[provNetwork.toLowerCase()]);
 
-export const s2PolicyId = provNetwork == "Mainnet" 
-    ? Deno.env.get("S2_POLICY_ID_MAINNET") as string 
-    : demoS2PolicyId;
+export const s2MintPolicyRefUtxo: Record<string, UTxO> = {
+    preprod: {
+        "txHash": "b1929747259cc5fbfa47186cd53e887686540e70c7292398395af413c9f63ca6",
+        "outputIndex": 0,
+        "assets": {
+            "lovelace": 2904940n,
+            "1170080521cf4fcd88d6205041cf55f72f70820e27ad444d61c6d7f96876635332506f6c696379": 1n
+        },
+        "address": "addr_test1zqqqapmt5rdujg8yj6thdpe3hw52396kws3e47g5m5g84ey3te374kl92m5f3cf30k76974jm2x8rrw5pgu0e2fwukusxvp3e9",
+        "datum": "d87980",
+        "scriptRef": s2MintingScript.preprod,
+    },
+    mainnet: {
+        "txHash": "feae18fe8b6149fb33442b727b23c246efa30807b4797698c5e48740168ff2a8",
+        "outputIndex": 0,
+        "assets": {
+            "lovelace": 1823130n,
+            "18f0e6a5e0846d2d7ca106d06bd8a7ac9af41b67162907ee5c8368426876635332506f6c696379": 1n
+        },
+        "address": "addr1zxxauswy8ce9ny497etw0l86e5vz582hdlphrxa5rpk633v3te374kl92m5f3cf30k76974jm2x8rrw5pgu0e2fwukusxjs4zx",
+        "datum": "d87980",
+        "scriptRef": s2MintingScript.mainnet,
+    }    
+};
 
 export const prefix_100 = "000643b0";
 export const prefix_222 = "000de140";
 
 export const testS2NFTs = [
-    `${s2PolicyId}${prefix_222}${fromText("HW S2 1070")}`,
-    `${s2PolicyId}${prefix_222}${fromText("HW S2 1071")}`,
+    `${s2PolicyId}${prefix_222}${fromText("HW S2 3123")}`,
+    `${s2PolicyId}${prefix_222}${fromText("HW S2 0208")}`,
+    `${s2PolicyId}${prefix_222}${fromText("HW S2 0120")}`,
 ]
 
 export const testLiveShuffleNFTs = [
@@ -245,6 +275,10 @@ export const testLiveShuffleNFTs = [
     {
         "ref": `${s2PolicyId}${prefix_100}${fromText("HW S2 1073")}`,
         "usr": `${s2PolicyId}${prefix_222}${fromText("HW S2 1073")}`,
+    },
+    {
+        "ref": `${s2PolicyId}${prefix_100}${fromText("HW S2 1074")}`,
+        "usr": `${s2PolicyId}${prefix_222}${fromText("HW S2 1074")}`,
     }
 ];
 

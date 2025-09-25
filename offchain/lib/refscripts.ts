@@ -30,4 +30,5 @@ export const beaconTokens = {
     settings: refscriptsPolicyID + fromText(`settings`),
     vault: refscriptsPolicyID + fromText(`vault`),
     protocol: refscriptsPolicyID + fromText(`protocol`),
+    hvcS2Policy: refscriptsPolicyID + fromText(`hvcS2Policy`),
 };

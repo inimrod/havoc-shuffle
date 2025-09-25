@@ -7,6 +7,8 @@ import {
     getEmulatorInstance,
     emulator,
     provNetwork,
+    s2PolicyId,
+    s2MintingScript,
     refscriptsPolicyID,
     refscriptsRewardAddr,
     refscriptsScript,
@@ -14,14 +16,15 @@ import {
     buildSettingsScript,
     buildVaultScript,
     buildProtocolScript,
+    s2MintPolicyRefUtxo
 } from "../index.ts";
 import { Data, stringify, UTxO } from "@lucid-evolution/lucid";
 
-console.log(`Using network: ${provNetwork}`);
 const lucid = provNetwork == "Custom" ? getEmulatorInstance() : getLucidInstance();
 
 // run if this script is called directly from command line
 if (import.meta.main) {
+    console.log(`Using network: ${provNetwork}`);
     if (deployed && deployed.referenceUtxos) { // Avoid re-deploying if already done
         console.log(`Reference UTXOs already deployed. Exiting...`);
         Deno.exit(0);
@@ -33,11 +36,20 @@ if (import.meta.main) {
 
 
 export async function deployRescripts(){
+    // When using emulator, deploy minting policy for s2 tokens first
+    const s2PolicyRefUtxo = await (async()=>{
+        if (provNetwork == "Custom") {
+            return await deployS2MintPolicy();
+        } else {
+            return s2MintPolicyRefUtxo[provNetwork.toLowerCase()];
+        }
+    })();
+
     // The following actions are already combined here:
     // 1. mint beacon tokens for the refscripts
     // 2. deploy compiled refscripts into UTXOs with beacon tokens
 
-    const { initUtxos, newWalletInputs }  = await prepInitUtxos();
+    const { initUtxos, newWalletInputs } = await prepInitUtxos();
     const deployUtxo = initUtxos[0];
     const settingsInitUtxo = initUtxos[1];
     lucid.overrideUTxOs(newWalletInputs);
@@ -55,7 +67,8 @@ export async function deployRescripts(){
         [beaconTokens.vault]: 1n,
         [beaconTokens.protocol]: 1n,
     };
-    const [_newWalletInputs, derivedOutputs, tx] = await lucid
+    
+    const [newWalletInputs2, derivedOutputs, tx] = await lucid
         .newTx()
         .collectFrom([deployUtxo])
         .mintAssets(assetsToMint, Data.void())
@@ -106,9 +119,10 @@ export async function deployRescripts(){
 
     // Simulate the passage of time and block confirmations
     if (provNetwork == "Custom") {
-        await emulator.awaitBlock(10);
+        emulator.awaitBlock(10);
         console.log("emulated passage of 10 blocks..");
         console.log("");
+        lucid.overrideUTxOs(newWalletInputs2);
     }
 
     const refscriptsRefUtxo: UTxO = derivedOutputs.find((utxo) => {
@@ -136,10 +150,12 @@ export async function deployRescripts(){
         settings: settingsValRefUtxo,
         vault: vaultValRefUtxo,
         protocol: protocolValRefUtxo,
+        s2MintPolicy: s2PolicyRefUtxo
     };
 
     const results = {
         referenceUtxos,
+        s2PolicyId,
         refscriptsPolicyID,
         refscriptsScriptAddr,
         settingsInitUtxo: settingsInitUtxo,
@@ -159,6 +175,7 @@ export async function deployRescripts(){
 
     // update the in-memory deployed details too
     deployed.referenceUtxos = referenceUtxos;
+    deployed.s2PolicyId = s2PolicyId;
     deployed.refscriptsPolicyID = refscriptsPolicyID;
     deployed.refscriptsScriptAddr = refscriptsScriptAddr;
     deployed.settingsInitUtxo = settingsInitUtxo;
@@ -218,4 +235,49 @@ export async function prepInitUtxos(){
     console.log("");
 
     return { initUtxos, newWalletInputs }
+}
+
+// Should only be called when using emulator network
+export async function deployS2MintPolicy(){
+    const assetsToMint = {
+        [beaconTokens.hvcS2Policy]: 1n
+    };
+    const [newWalletInputs, derivedOutputs, tx] = await lucid
+        .newTx()
+        .mintAssets(assetsToMint, Data.void())
+        .pay.ToContract(
+            refscriptsScriptAddr,
+            { kind: "inline", value: Data.void() },
+            { [beaconTokens.hvcS2Policy]: 1n },
+            s2MintingScript.custom,
+        )        
+        .attachMetadata(674, { msg: ["Havoc Shuffle s2 mint policy deploy"] })
+        .attach.Script(refscriptsScript)
+        .addSignerKey(adminPkh)
+        .chain();
+    console.log(`deploy s2 mint policy tx built`);
+    const signedTx = await tx.sign.withWallet().complete();
+    const txJson = JSON.parse(stringify(signedTx));
+    console.log(`txFee: ${parseInt(txJson.body.fee) / 1_000_000} ADA`);
+    console.log("");
+
+    const txHash = await signedTx.submit();
+    console.log(`Refscripts deploy tx submitted. Hash: ${txHash}`);
+    console.log("");
+
+    // Simulate the passage of time and block confirmations
+    emulator.awaitBlock(10);
+    console.log("emulated passage of 10 blocks..");
+    console.log("");
+
+    // update lucid instance UTXOs
+    lucid.overrideUTxOs(newWalletInputs);
+
+    const s2PolicyRefUtxo: UTxO = derivedOutputs.find((utxo) => {
+        if (utxo.assets[beaconTokens.hvcS2Policy]) return true;
+        else return false;
+    }) as UTxO;
+
+
+    return s2PolicyRefUtxo;
 }

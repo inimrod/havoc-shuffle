@@ -71,7 +71,7 @@ export async function initializeSettings(){
         max_to_shuffle: 5n,
     };
     const cfgDatum = makeSettingsDatum(cfgDatumObj);
-    const [_newWalletInputs, derivedOutputs, tx] = await lucid
+    const [newWalletInputs, derivedOutputs, tx] = await lucid
         .newTx()
         .collectFrom([settingsInitUtxo])
         .mintAssets(assetsToMint, mintCfgBeaconRedeemer)
@@ -107,6 +107,8 @@ export async function initializeSettings(){
         await emulator.awaitBlock(10);
         console.log("emulated passage of 10 blocks..");
         console.log("");
+        // update lucid instance UTXOs
+        lucid.overrideUTxOs(newWalletInputs);
     }
 
     const settingsUtxo: UTxO = derivedOutputs.find((utxo) => {
