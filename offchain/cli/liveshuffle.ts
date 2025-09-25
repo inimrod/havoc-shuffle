@@ -138,7 +138,6 @@ export async function fulfillLiveShuffle(){
     const s2MinterAddress = await lucid.wallet().address();
     const minterPaymtCred = getAddressDetails(s2MinterAddress).paymentCredential as Credential;
     const minterPkh = minterPaymtCred.hash;
-    console.log(`s2 minter pkh: ${minterPkh}`);
 
     // switch back to admin wallet:
     lucid.selectWallet.fromSeed(ADMIN_WALLET_SEED);
@@ -217,7 +216,7 @@ export async function fulfillLiveShuffle(){
     }
 
     async function buildLiveShuffleTx(userLovelace:bigint){
-        const tx = await lucid
+        const tx = lucid
             .newTx()
             .collectFrom(inputUtxos, liveShuffleRedeemer)
             .mintAssets(assetsToMint, Data.void())
@@ -281,6 +280,7 @@ export async function fulfillLiveShuffle(){
     const s2MinterWitness = await makeTxSignBuilder(lucid.wallet(), finalTx.toTransaction()).partialSign.withWallet();
     console.log(`Done signing with s2 minter key.`);
 
+    // sign with admin key:
     const signedTx = await finalTx.assemble([s2MinterWitness]).sign.withWallet().complete();
     console.log(`Done signing with admin key.`);
     console.log(`signedTx: ${stringify(signedTx)}`);

@@ -1,10 +1,12 @@
 import { 
     getLucidInstance,
     provNetwork, 
-    testS2NFTs,
     USER_WALLET_SEED,
     ADMIN_WALLET_SEED,
     s2MintPolicyRefUtxo,
+    testLiveShuffleNFTs,
+    s2RefTokensValRefUtxo,
+    refTokensValidatorAddr,
 } from "../index.ts";
 import { 
     Data, 
@@ -30,16 +32,26 @@ const minterPkh = minterPaymtCred.hash;
 // switch to user wallet:
 lucid.selectWallet.fromSeed(USER_WALLET_SEED);
 
-const assetsToMint = {} as Record<string, bigint>;
-for (const assetId of testS2NFTs){
-    assetsToMint[assetId] = 1n;
+const assetsToBurn = {} as Record<string, bigint>;
+for (const nft of testLiveShuffleNFTs){
+    assetsToBurn[nft.ref] = -1n;
+    assetsToBurn[nft.usr] = -1n;
 }
+
+const refTokensUtxos = (await lucid.utxosAt(refTokensValidatorAddr)).filter(utxo => {
+    for (const nft of testLiveShuffleNFTs){
+        if (utxo.assets[nft.ref]) return true;
+    }
+    return false;
+});
+
 const tx = await lucid
     .newTx()
-    .mintAssets(assetsToMint, Data.void())
-    .addSignerKey(minterPkh)
-    .attachMetadata(674, { msg: ["Havoc Shuffle test mint s2 nfts"] })
-    .readFrom([s2MintPolicyRefUtxo.preprod])
+    .mintAssets(assetsToBurn, Data.void())
+    .collectFrom(refTokensUtxos, Data.void())
+    .addSignerKey(minterPkh) // s2 minting policy reqt
+    .attachMetadata(674, { msg: ["Havoc Shuffle burn test s2 nfts"] })
+    .readFrom([s2MintPolicyRefUtxo.preprod, s2RefTokensValRefUtxo.preprod])
     .complete();
 
 // sign with s2 minter key:
@@ -49,6 +61,7 @@ console.log(`Done signing with s2 minter key.`);
 
 // sign with user key:
 const signedTx = await tx.assemble([s2MinterWitness]).sign.withWallet().complete();
+console.log(`Done signing with user key.`);
 console.log(`signedTx: ${stringify(signedTx)}`);
 console.log(`signedTx hash: ${signedTx.toHash()}`);
 console.log(`size: ~${signedTx.toCBOR().length / 2048} KB`);
@@ -58,6 +71,5 @@ const txJson = JSON.parse(stringify(signedTx));
 console.log(`txFee: ${parseInt(txJson.body.fee) / 1_000_000} ADA`);
 console.log("");
 
-// Deno.exit(0);
 const txHash = await signedTx.submit();
-console.log(`Mint test S2 NFTs tx submitted. Hash: ${txHash}`);
+console.log(`Burn test S2 NFTs tx submitted. Hash: ${txHash}`);
